@@ -1,0 +1,1 @@
+for /r %v in (*.mp4) do (ffmpeg-normalize %v -nt rms -ext mp4 -c:a aac -of "../mp4_norm")

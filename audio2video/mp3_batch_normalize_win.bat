@@ -1,0 +1,1 @@
+for %i in (*.mp3) do (ffmpeg-normalize %i -nt rms -ext mp3 -c:a libmp3lame  -of "../mp3_norm")
