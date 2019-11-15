@@ -12,6 +12,9 @@ tmp_dir  = '../temp'
 trn_dir  = '../train'
 test_dir = '../test'
 
+raw_mfcc_dir = '%s/mfcc' % raw_dir
+raw_fids_dir = '%s/fids' % raw_dir
+
 pdctdir = '%s/shape_predictor_68_face_landmarks.dat' % ref_dir
 ref3dir = '%s/ref3d.pkl' % ref_dir
 detector = dlib.get_frontal_face_detector()
