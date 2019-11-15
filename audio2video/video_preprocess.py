@@ -1,10 +1,11 @@
 import os
+import cv2
 import glob
 import numpy as np
 from threading import Thread
-from .__init__ import raw_dir, ref_dir, log_dir
-from .pca import PCA
-from .landmark import landmark
+from __init__ import raw_dir, ref_dir, log_dir
+from pca import PCA
+from face import get_landmark, LandmarkIndex, facefrontal, fronter
 
 srcdir = '%s/mp4' % raw_dir
 dstdir = '%s/fids' % raw_dir
@@ -15,6 +16,53 @@ unqeles, unqinds, inverids, unqcnts = np.unique(subdirs, return_index=True, retu
 with open(os.path.join(ref_dir, 'links.txt')) as linkf:
     files = linkf.readlines()
     files = [x[32:43] for x in files]
+
+def video_landmark(mp4_path, args):
+    '''
+    ### parameters
+    mp4_path: path of mp4 file \\
+    args: (n, 2) fragmentation arguments. The 1st column is startfr # and the 2nd column is nfr. 
+    Totally n fragments
+
+    ### retval
+    feature_list: a list whose length is # of fragments. Each element of the list is features data 
+    in ndarray format of each fragment with the shape of (nfr, 40)
+    '''
+    feature_list = []
+    frag_id = 0
+
+    cap = cv2.VideoCapture(mp4_path)
+    for startfr, nfr in args:
+        # initialization
+        cnt = 0
+        cap.set(cv2.CAP_PROP_POS_FRAMES, startfr)
+        fragment_feature = None
+
+        while cap.isOpened() and cnt < nfr:
+            print(mp4_path[-15:-4],'#:', startfr + cnt)
+            # fetch the frame
+            ret, img_ = cap.read()
+            
+            # frontalization
+            img = facefrontal(img_, fronter)    # img.shape = None or (320, 320, 3)
+
+            # lip landmark extraction and normalization
+            det, landmarks = get_landmark(img, LandmarkIndex.LIP, norm=True)
+            frame_feature = landmarks.reshape((landmarks.shape[0]*landmarks.shape[1]))  # (40, )
+
+            # add frame_feature to fragment_feature
+            if fragment_feature is None:
+                fragment_feature = np.copy(frame_feature)
+            else:
+                fragment_feature = np.vstack((fragment_feature, frame_feature))
+
+            cnt += 1
+
+        # fragment_feature.shape = (fr?, 40)
+        feature_list.append(fragment_feature)
+        frag_id += 1
+
+    return feature_list
 
 def vprocess(links, cnts, tid):
     '''get lip landmark coordinates from given mp4 links
@@ -40,22 +88,13 @@ def vprocess(links, cnts, tid):
             args.append([startfr, nfr])
         args = np.array(args)
 
-        feature_list, new_args = landmark(srcfile, args)
+        feature_list = video_landmark(srcfile, args)
 
         with open('%s/%s.log' % (log_dir, tname), 'a') as logf:
             for i, subdir in enumerate(subdir_list):
                 features = feature_list[i]
                 np.save('%s/%s/features.npy' % (dstdir, subdir), features)
                 logf.write('%s/features.npy saved\n' % subdir)
-                
-                if args[i, 0] != new_args[i, 0]:
-                    with open('%s/%s/startframe.txt' % (dstdir, subdir), 'w') as f:
-                        f.write(str(new_args[i, 0]))
-                        logf.write('%s/startframe.txt modified: %s to %s\n' % (subdir, str(args[i, 0]), str(new_args[i, 0])))
-                if args[i, 1] != new_args[i, 1]:
-                    with open('%s/%s/nframe.txt' % (dstdir, subdir), 'w') as f:
-                        f.write(str(new_args[i, 1]))
-                        logf.write('%s/nframe.txt modified: %s to %s\n' % (subdir, str(args[i, 1]), str(new_args[i, 1])))
             logf.write(str(total_cnt+1)+'/'+str(len(cnts))+' done\n====================\n')
 
         total_cnt += 1

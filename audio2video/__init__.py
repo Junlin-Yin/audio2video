@@ -1,6 +1,5 @@
 import os
 import dlib
-from .facefrontal import frontalizer
 
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 inp_dir  = '../input'
@@ -11,12 +10,12 @@ ref_dir  = '../reference'
 tar_dir  = '../target'
 tmp_dir  = '../temp'
 trn_dir  = '../train'
+test_dir = '../test'
 
 pdctdir = '%s/shape_predictor_68_face_landmarks.dat' % ref_dir
 ref3dir = '%s/ref3d.pkl' % ref_dir
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(pdctdir)
-fronter   = frontalizer(ref3dir)
 
 class Square:
     def __init__(self, l, r, u, d):

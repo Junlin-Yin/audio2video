@@ -19,7 +19,6 @@ import numpy as np
 import numpy.fft
 import os
 import math
-from .__init__ import raw_dir, inp_dir
 
 def mel(f):
     return 2595. * np.log10(1. + f / 700.)
@@ -242,21 +241,17 @@ def dct3(input, K=40):
     cosmat[:,0] = cosmat[:,0] * 0.5
     return np.dot(input, cosmat.T)
 
-def audio_process():
-    base_dirs = [raw_dir, inp_dir]
+def audio_process(base_dirs):
     for base_dir in base_dirs:
         mp3dir, audiodir = '%s/mp3' % base_dir, '%s/mfcc' % base_dir
         files = os.listdir(mp3dir)
-        files.remove('.gitignore')
         sr = 16000
         mfccGen = MFCC(nfilt=40, ncep=13, samprate=sr, frate=100, wlen=0.025)
         for mp3file in files:
             y, sr = librosa.load('%s/%s' % (mp3dir, mp3file), sr=None)
             audio = mfccGen.sig2s2mfc_energy(y)     # audio.shape = (nfr, 15)
-            numpy.save('%s/%s.npy' % (audiodir, mp3file[4:-4]), audio)
+            numpy.save('%s/%s.npy' % (audiodir, mp3file[:-4]), audio)
             print(mp3file, 'done')
 
 if __name__ == '__main__':
     print('Hello, World')
-
-    

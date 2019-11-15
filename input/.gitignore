@@ -1,0 +1,7 @@
+mp3/*
+!mp3/a036.mp3
+!mp3/a037.mp3
+
+mfcc/*
+!mfcc/a036.npy
+!mfcc/a037.npy
