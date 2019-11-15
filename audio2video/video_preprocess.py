@@ -26,10 +26,6 @@ def vprocess(links, cnts, tid):
     '''
     total_cnt = 0
     tname = 'Thread-' + str(100+tid)[1:3]
-    logs = glob.glob('%s/*.log' % log_dir)
-    for log in logs:
-        os.remove(log)
-
     for link, cnt in zip(links, cnts):
         idx = files.index(link)
         srcfile = '%s/%s_%s.mp4' % (srcdir, str(1001+idx)[1:4], files[idx])
@@ -65,6 +61,10 @@ def vprocess(links, cnts, tid):
         total_cnt += 1
 
 def video_process(start_batch=0, end_batch=301, links=None, cnts=None, nthreads=10):
+    logs = glob.glob('%s/*.log' % log_dir)
+    for log in logs:
+        os.remove(log)
+
     if links is None and cnts is None:
         links = unqeles[start_batch:end_batch]
         cnts  = unqcnts[start_batch:end_batch]

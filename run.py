@@ -1,3 +1,10 @@
-from audio2video.video_preprocess import video_process
+from audio2video.audio_preprocess import audio_process
+from audio2video.video_preprocess import video_process, reduce_dim
 
-video_process(start_batch=0, end_batch=1, nthreads=10)
+def step1():
+    audio_process()
+    video_process(nthreads=10)
+    reduce_dim()
+
+if __name__ == '__main__':
+    print('Hello, World')
