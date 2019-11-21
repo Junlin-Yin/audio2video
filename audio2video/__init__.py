@@ -8,9 +8,8 @@ outp_dir = '../output'
 raw_dir  = '../raw' 
 ref_dir  = '../reference'
 tar_dir  = '../target'
-tmp_dir  = '../temp'
+tmp_dir  = '../tmp'
 trn_dir  = '../train'
-test_dir = '../test'
 
 raw_mfcc_dir = '%s/mfcc' % raw_dir
 raw_fids_dir = '%s/fids' % raw_dir

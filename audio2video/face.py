@@ -38,7 +38,9 @@ class LandmarkIndex():
 
 def get_landmark(img, idx, norm):
     dets = detector(img, 1)
-    assert(len(dets) == 1)
+    if len(dets) != 1:
+        return None, None
+
     det = dets[0]
     shape = predictor(img, det)
     landmarks = np.asarray([(shape.part(n).x, shape.part(n).y) for n in range(shape.num_parts)], np.float32)
@@ -183,7 +185,10 @@ class frontalizer():
             frontal_sym = rawfrontal
         return rawfrontal, frontal_sym, ProjM, TransM
 
-def facefrontal(img, fronter, detail=False):
+fronter  = frontalizer(ref3dir)
+
+
+def facefrontal(img, detail=False):
     '''
     ### parameters
     img: original image to be frontalized \\
@@ -191,6 +196,9 @@ def facefrontal(img, fronter, detail=False):
     newimg: (320, 320, 3), frontalized image
     '''
     det, p2d = get_landmark(img, LandmarkIndex.FULL, norm=False)
+    if det is None or p2d is None:
+        return None
+        
     rawfront, symfront, projM, transM = fronter.frontalization(img, det, p2d)
     newimg = symfront.astype('uint8')
     if detail == False:
@@ -232,7 +240,6 @@ def warp_mapping(fronter, indices, pixels, tarfr, tarldmk, projM, transM, ksize=
     
     return warp_mask, region, opt2d, pixels
 
-fronter  = frontalizer(ref3dir)
 if __name__ == "__main__":
     from __init__ import test_dir
     img = cv2.imread('%s/0660.png' % test_dir)

@@ -5,7 +5,7 @@ import numpy as np
 from threading import Thread
 from __init__ import raw_dir, ref_dir, log_dir
 from pca import PCA
-from face import get_landmark, LandmarkIndex, facefrontal, fronter
+from face import get_landmark, LandmarkIndex, facefrontal
 
 srcdir = '%s/mp4' % raw_dir
 dstdir = '%s/fids' % raw_dir
@@ -44,7 +44,7 @@ def video_landmark(mp4_path, args):
             ret, img_ = cap.read()
             
             # frontalization
-            img = facefrontal(img_, fronter)    # img.shape = None or (320, 320, 3)
+            img = facefrontal(img_)    # img.shape = None or (320, 320, 3)
 
             # lip landmark extraction and normalization
             det, landmarks = get_landmark(img, LandmarkIndex.LIP, norm=True)
