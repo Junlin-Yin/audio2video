@@ -5,3 +5,10 @@ mp3/*
 mfcc/*
 !mfcc/a036.npy
 !mfcc/a037.npy
+
+!ldmk/*/a036.npy
+!ldmk/*/a037.npy
+
+vis/*/*.avi
+!vis/*/a036.mp4
+!vis/*/a037.mp4

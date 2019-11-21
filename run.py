@@ -3,17 +3,17 @@ from audio2video.amfcc import audio_process
 from audio2video.vfids import video_process, reduce_dim
 from audio2video.lipnn import Audio2Video
 from audio2video.loadstore import plot_loss
-from audio2video.visual import visual_lipsync
+from audio2video.visual import visual_lipsyn
 
 def step0_dataset():
     audio_process([raw_dir, inp_dir])
     video_process(nthreads=10)
     reduce_dim()
 
-def step1_lipsync(pass_id, train, predict, inp_id, outp_norm=False, preprocess=False,
-                  vr=0.2, step_delay=20, dim_hidden=60, nlayers=1, keep_prob=0.8,
-                  seq_len=100, batch_size=100, nepochs=300, grad_clip=10,
-                  lr=1e-3, dr=0.99, b_savef=50, e_savef=5, argspath=None, showGraph=False):
+def step1_lipsyn(pass_id, train, predict, inp_id, outp_norm=False, preprocess=False,
+                 vr=0.2, step_delay=20, dim_hidden=60, nlayers=1, keep_prob=0.8,
+                 seq_len=100, batch_size=100, nepochs=300, grad_clip=10,
+                 lr=1e-3, dr=0.99, b_savef=50, e_savef=5, argspath=None, showGraph=False):
     # important parameters
     args = {}
     args['vr']         = vr             # validation set ratio
@@ -36,11 +36,11 @@ def step1_lipsync(pass_id, train, predict, inp_id, outp_norm=False, preprocess=F
     args['preprocess'] = preprocess
     args['outp_norm']  = outp_norm
 
-    apath = '%s/mfcc/a%s.npy' % (inp_dir, inp_id)
-    mpath = '%s/mp3/a%s.mp3'  % (inp_dir, inp_id)
-    opath = '%s/ldmk/%s/a%s.npy' % (inp_dir, pass_id, inp_id)
-    tpath = '%s/ldmk/%s/a%s#1.mp4' % (inp_dir, pass_id, inp_id)
-    vpath = '%s/vis/%s/a%s.mp4'  % (inp_dir, pass_id, inp_id)
+    apath = '%s/mfcc/a%s.npy' % (inp_dir, inp_id)               # audio mfcc
+    mpath = '%s/mp3/a%s.mp3'  % (inp_dir, inp_id)               # music mp3
+    opath = '%s/ldmk/%s/a%s.npy' % (inp_dir, pass_id, inp_id)   # output npy data
+    tpath = '%s/vis/%s/a%s.avi' % (inp_dir, pass_id, inp_id)    # temporary visualized mp4
+    vpath = '%s/vis/%s/a%s.mp4' % (inp_dir, pass_id, inp_id)    # final visualization
 
     a2v_cvter = Audio2Video(args=args)
     if train:
@@ -48,8 +48,10 @@ def step1_lipsync(pass_id, train, predict, inp_id, outp_norm=False, preprocess=F
         plot_loss(args['pass_id'])
     if predict:
         ldmks = a2v_cvter.test(apath=apath, opath=opath)
-        visual_lipsync(ldmks, tpath, mpath, vpath)
+        visual_lipsyn(ldmks, mpath, vpath, tpath)
         print('Final results are successfully saved to path: %s' % vpath) 
 
 if __name__ == '__main__':
-    step1_lipsync(pass_id='std_u', train=True, predict=True, inp_id='036', outp_norm=False)
+    # step0_dataset()
+    # step1_lipsyn(pass_id='std_u', train=False, predict=True, inp_id='036', outp_norm=False)
+    pass

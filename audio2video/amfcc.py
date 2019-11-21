@@ -248,7 +248,7 @@ def audio_process(base_dirs):
         sr = 16000
         mfccGen = MFCC(nfilt=40, ncep=13, samprate=sr, frate=100, wlen=0.025)
         for mp3file in files:
-            y, sr = librosa.load('%s/%s' % (mp3dir, mp3file), sr=None)
+            y, sr = librosa.load('%s/%s' % (mp3dir, mp3file), sr=sr)
             audio = mfccGen.sig2s2mfc_energy(y)     # audio.shape = (nfr, 15)
             numpy.save('%s/%s.npy' % (audiodir, mp3file[:-4]), audio)
             print(mp3file, 'done')
