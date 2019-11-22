@@ -30,11 +30,15 @@ class LandmarkIndex():
     EYER  = list(range(42, 48))
     LIPO  = list(range(48, 60))
     LIPI  = list(range(60, 68))
+    LIPU  = [49, 50, 51, 52, 53, 61, 62, 63]
+    LIPL  = [55, 56, 57, 58, 59, 65, 66, 67]
     BROWS = BROWL + BROWR
     FACE  = CHEEK + BROWS
     EYES  = EYEL  + EYER
     LIP   = LIPO  + LIPI
     FULL  = FACE  + NOSE + EYES + LIP
+    CONTOUR_FACE  = CHEEK + BROWS[::-1]
+    CONTOUR_TEETH = LIPI
 
 def get_landmark(img, idx, norm):
     dets = detector(img, 1)
@@ -62,7 +66,7 @@ def plot3d(p3ds):
     plt.ylabel('y')
     plt.show()
     
-def resize(img, det, p2d, detw=200, imgw=320):
+def resize(img, det, p2d, detw=200, padw=60):
     # detw and imgw are both determined by the template model.
     # assume that det.width() ~ det.height()
     left, top = det.left(), det.top()
@@ -72,20 +76,20 @@ def resize(img, det, p2d, detw=200, imgw=320):
     
     curdetw = (det.width() + det.height()) / 2
     ratio = detw / curdetw
-    gap = int((imgw - detw) / 2)
+    # imgw == 320 (default for face_frontal)
     
     img_2 = cv2.resize(img_, (round(W*ratio), round(H*ratio)))
     H, W, C = img_2.shape
-    img_ = np.zeros((H+2*gap, W+2*gap, C))
-    img_[gap:-gap, gap:-gap, :] = img_2
+    img_ = np.zeros((H+2*padw, W+2*padw, C), dtype=np.uint8)
+    img_[padw:-padw, padw:-padw, :] = img_2
     
-    p2d_ = p2d_ * ratio + gap
-    left = round(left * ratio + gap)
-    top  = round(top  * ratio + gap)
+    p2d_ = p2d_ * ratio + padw
+    left = round(left * ratio + padw)
+    top  = round(top  * ratio + padw)
     
-    img_ = img_[top-gap:top+detw+gap, left-gap:left+detw+gap, :]
-    p2d_ -= (left-gap, top-gap)
-    transM = np.array([[ratio, 0, 0], [0, ratio, 0], [2*gap-left, 2*gap-top, 1]])
+    img_ = img_[top-padw:top+detw+padw, left-padw:left+detw+padw, :]
+    p2d_ -= (left-padw, top-padw)
+    transM = np.array([[ratio, 0, 0], [0, ratio, 0], [2*padw-left, 2*padw-top, 1]])
     
     return img_, p2d_, transM
 

@@ -8,7 +8,6 @@ Created on Wed Oct  9 10:28:05 2019
 from subprocess import call
 import numpy as np
 import cv2
-import os
 
 vfps = 30
 size  = (1280, 720)

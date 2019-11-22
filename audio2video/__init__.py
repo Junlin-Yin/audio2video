@@ -26,10 +26,10 @@ class Square:
         self.up = u
         self.down = d
         
-    def align(self, S):
-        left  = round(self.left  * S)
-        right = round(self.right * S)
-        upper = round(self.up    * S)
-        lower = round(self.down  * S)
+    def align(self, S, padw):
+        left  = round(self.left  * S + padw)
+        right = round(self.right * S + padw)
+        upper = round(self.up    * S + padw)
+        lower = round(self.down  * S + padw)
         return left, right, upper, lower
         

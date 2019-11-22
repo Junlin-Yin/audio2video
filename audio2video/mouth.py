@@ -7,18 +7,8 @@ This is a temporary script file.
 import numpy as np 
 import os
 import cv2
-from __init__ import ref_dir
-from face import get_landmark, LandmarkIndex, facefrontal
-from teeth import local_enhancement, detect_region_1, detect_region_2, process_proxy
-
-k = 1.8
-data = np.load('%s/stat.npz' % ref_dir)
-mean, std = data['mean'], data['std']
-boundL = mean - k*std
-boundU = mean + k*std
-
-teeth_hsv_lower  = np.array([0, 0, 60])
-teeth_hsv_upper  = np.array([180, 150, 255])
+from face import get_landmark, LandmarkIndex, facefrontal, resize
+from teeth import process_teeth, process_proxy
 
 black_lower = np.array([0, 0, 0])
 black_upper = np.array([180, 255, 46])
@@ -34,7 +24,7 @@ def mask_inpaint(img):
     mimg = cv2.inpaint(img, mask, 10, cv2.INPAINT_TELEA)
     return mimg
         
-def preprocess(mp4_path, save_path, rsize, startfr=0, endfr=None):
+def preprocess(mp4_path, save_path, rsize, padw, startfr=0, endfr=None):
     '''
     ### parameters
     mp4_path: path of mp4 file \\
@@ -64,29 +54,15 @@ def preprocess(mp4_path, save_path, rsize, startfr=0, endfr=None):
         det, ldmk = get_landmark(img, LandmarkIndex.LIP, norm=True)
         if det is None or ldmk is None:
             continue
-
-        # validate landmarks using statistics in the dataset
-        # if np.sum(np.logical_or(ldmk < boundL, ldmk > boundU)) > 0:
-        #     continue
         landmarks.append(ldmk)
         
-        # resize texture into a square
-        txtr = img[det.top():det.top()+det.height(), det.left():det.left()+det.width()]
-        txtr = cv2.resize(txtr, (rsize, rsize))       
-        # mask & inpaint for clothes region
+        # resize texture and inpaint the blank part
+        txtr = resize(img, det, ldmk, detw=rsize, padw=padw)[0]
         txtr = mask_inpaint(txtr)
         textures.append(txtr)
         
     landmarks = np.array(landmarks)
     textures = np.array(textures)
-    
-    # filter frames which are not locally smooth
-    # approx = (landmarks[2:, :] + landmarks[:-2, :]) / 2
-    # L2 = np.linalg.norm(landmarks[1:-1, :]-approx, ord=2, axis=1)
-    # check = (L2 <= 0.1).nonzero()
-    # landmarks = landmarks[1:-1][check].reshape((-1, 20, 2))
-    # textures  = textures[1:-1][check]
-    
     np.savez(save_path, landmarks=landmarks, textures=textures)
 
 def optimize_sigma(L2, n, alpha):
@@ -157,27 +133,16 @@ def sharpen(inpI, ksize=(15, 15), sigma=1.0, k=0.5):
     outpI = outpI.astype(np.uint8)
     return outpI
 
-def process_teeth(inpI, inpS, pxyF, pxyS, rsize, boundary, hsvU=teeth_hsv_upper, hsvL=teeth_hsv_lower, biasU=2, biasL=6):
-    regionU, regionL = detect_region_1(inpI, inpS, hsvU, hsvL, biasU, biasL, rsize, boundary)
-    # enhance upper region
-    tmpI = local_enhancement(inpI, inpS, pxyF['upper'], pxyS['upper'], regionU, rsize, boundary, 'upper')
-    # enhance lower region
-    tmpI = local_enhancement(tmpI, inpS, pxyF['lower'], pxyS['lower'], regionL, rsize, boundary, 'lower')
-    # sharpening
-    outpI = sharpen(tmpI)
-    return outpI
-
-def lowerface(sq, ipath, tpath, tprocpath, opath, rsize=300, preproc=False):
+def lowerface(sq, ipath, tpath, tprocpath, opath, rsize=300, padw=100, preproc=False):
     # preprocess target video
     if preproc or os.path.exists(tprocpath) == False:
-        preprocess(tpath, tprocpath, rsize)
+        preprocess(tpath, tprocpath, rsize, padw)
     
     # load target data and clip them
     tgtdata = np.load(tprocpath)
     tgtS, tgtI = tgtdata['landmarks'], tgtdata['textures']
-    boundary = sq.align(tgtI.shape[1])      # (left, right, upper, lower)
-    tgtI = tgtI[:, boundary[2]:boundary[3], boundary[0]:boundary[1], :]
-    
+    boundary = sq.align(rsize, padw)      # (left, right, upper, lower)
+    tgtI = tgtI[:, boundary[2]:boundary[3], boundary[0]:boundary[1], :]  
     # load input data and proxy data
     inpdata = np.load(ipath)
     nfr = inpdata.shape[0]
@@ -189,49 +154,12 @@ def lowerface(sq, ipath, tpath, tprocpath, opath, rsize=300, preproc=False):
     for cnt, inpS in enumerate(inpdata):
         print("%s: %04d/%04d" % (opath, cnt+1, nfr))
         tmpI, tmpS = weighted_median(inpS, tgtS, tgtI)
-        outpI = process_teeth(tmpI, tmpS, pxyF, pxyS, rsize, boundary)
+        tmpI = process_teeth(tmpI, tmpS, pxyF, pxyS, rsize, padw, boundary)
+        outpI = sharpen(tmpI)
         outpdata.append(outpI)
     outpdata = np.array(outpdata)
     np.save(opath, outpdata)
     return outpdata
-
-# def test1():
-# #    tar_id = "target001"
-# #    savepath = preprocess(tar_dir+tar_id+'.mp4', sq, rsize=150, startfr=300)
-#     savepath = 'target/target001.npz'
-#     data = np.load(savepath)
-#     landmarks = data['landmarks']
-#     textures = data['textures']
-    
-#     inp_id = "test036_ldmks"
-#     ldmks = np.load(inp_dir+inp_id+'.npy')
-#     ldmk_test = ldmks[160, :, :]    # the 100th frame
-#     outpI, outpS = weighted_median(ldmk_test, landmarks, textures, n=50)
-    
-#     cv2.imshow('title', outpI)
-#     cv2.waitKey(0)
-    
-# def test2():
-#     import os
-#     imgfiles = os.listdir('tmp/')
-#     for imgfile in imgfiles:
-#         img = cv2.imread('tmp/' + imgfile)
-#         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-#         black_lower = np.array([0, 0, 0])
-#         black_upper = np.array([180, 255, 46])
-#         white_lower = np.array([0, 0, 46])
-#         white_upper = np.array([180, 50, 255])
-#         mask1 = cv2.inRange(hsv, black_lower, black_upper)
-#         mask2 = cv2.inRange(hsv, white_lower, white_upper)
-#         mask = mask1 | mask2
-        
-#         cv2.imshow('mask', mask)
-#         cv2.waitKey(0)
-        
-#         masked = cv2.inpaint(img, mask, 10, cv2.INPAINT_TELEA)
-        
-#         cv2.imshow('masked', masked)
-#         cv2.waitKey(0)    
     
 if __name__ == '__main__':
     pass

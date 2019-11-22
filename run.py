@@ -53,7 +53,7 @@ def step1_lipsyn(pass_id, train, predict, inp_id, outp_norm=False, preprocess=Fa
         visual.visual_lipsyn(ldmks, mpath, vpath, tmppath)
         print('Lip fids are synthesized at path: %s' % vpath) 
 
-def step2_lfacesyn(pass_id, inp_id, tar_id, sq, rsize=300, preproc=False):
+def step2_lfacesyn(pass_id, inp_id, tar_id, sq, rsize=300, padw=100, preproc=False):
     ipath       = '%s/ldmk/%s/a%s.npy' % (inp_dir, pass_id, inp_id)
     mpath       = '%s/mp3/a%s.mp3' % (inp_dir, inp_id)
     tpath       = '%s/mp4/t%s.mp4' % (tar_dir, tar_id)
@@ -61,7 +61,7 @@ def step2_lfacesyn(pass_id, inp_id, tar_id, sq, rsize=300, preproc=False):
     opath       = '%s/a%st%s/lface.npy' % (outp_dir, inp_id, tar_id)
     tmppath     = '%s/a%st%s/lface.avi' % (outp_dir, inp_id, tar_id)    # temporary visualized mp4
     vpath       = '%s/a%st%s/lface.mp4' % (outp_dir, inp_id, tar_id)    # final visualization
-    txtrs = mouth.lowerface(sq, ipath, tpath, tprocpath, opath, rsize=rsize, preproc=preproc)
+    txtrs = mouth.lowerface(sq, ipath, tpath, tprocpath, opath, rsize=rsize, padw=padw, preproc=preproc)
     visual.visual_lfacesyn(txtrs, mpath, vpath, tmppath)
     print('Lower face synthesized at path %s' % vpath)
 
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     pass_id = "std_u"
     inp_id  = "036"
     tar_id  = "001"
-    sq = a2v.Square(0.2, 0.8, 0.4, 1.00)
+    sq = a2v.Square(0.2, 0.8, 0.4, 1.15)
     # step0_dataset()
     # step1_lipsyn(pass_id=pass_id, train=False, predict=True, inp_id=inp_id, outp_norm=False)
     step2_lfacesyn(pass_id, inp_id, tar_id, sq)
