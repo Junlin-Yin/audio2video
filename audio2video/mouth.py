@@ -125,8 +125,8 @@ def weighted_median(inpS, tgtS, tgtI, n=100, alpha=0.9):
     
     return outpI, outpS  
 
-def sharpen(inpI, ksize=(15, 15), sigma=1.0, k=0.5):
-    smooth_inpI = cv2.GaussianBlur(inpI, ksize, sigma)
+def sharpen(inpI, ksize=15, sigma=1.0, k=0.5):
+    smooth_inpI = cv2.GaussianBlur(inpI, (ksize, ksize), sigma)
     outpI = (inpI.astype(np.float) - smooth_inpI.astype(np.float))*k + inpI.astype(np.float)
     outpI[outpI < 0]   = 0
     outpI[outpI > 255] = 255

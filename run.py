@@ -1,5 +1,8 @@
 import audio2video as a2v
-from audio2video import amfcc, vfids, lipnn, loadstore, visual, mouth
+from audio2video import amfcc, vfids
+from audio2video import lipnn, loadstore
+from audio2video import visual, mouth
+from audio2video import retiming
 
 raw_dir = a2v.raw_dir
 inp_dir = a2v.inp_dir
@@ -61,9 +64,25 @@ def step2_lfacesyn(pass_id, inp_id, tar_id, sq, rsize=300, padw=100, preproc=Fal
     opath       = '%s/a%st%s/lface.npy' % (outp_dir, inp_id, tar_id)
     tmppath     = '%s/a%st%s/lface.avi' % (outp_dir, inp_id, tar_id)    # temporary visualized mp4
     vpath       = '%s/a%st%s/lface.mp4' % (outp_dir, inp_id, tar_id)    # final visualization
+    
     txtrs = mouth.lowerface(sq, ipath, tpath, tprocpath, opath, rsize=rsize, padw=padw, preproc=preproc)
     visual.visual_lfacesyn(txtrs, mpath, vpath, tmppath)
     print('Lower face synthesized at path %s' % vpath)
+    
+def step3_retiming(pass_id, inp_id, tar_id):
+    mpath   = '%s/mp3/a%s.mp3' % (inp_dir, inp_id)
+    tpath   = '%s/mp4/t%s.mp4' % (tar_dir, tar_id)
+    orpath  = '%s/a%st%s/tgtor.mp4' % (outp_dir, inp_id, tar_id)
+    rtpath  = '%s/a%st%s/tgtrt.mp4' % (outp_dir, inp_id, tar_id)
+    opath   = '%s/a%st%s/retiming.npy' % (outp_dir, inp_id, tar_id)
+    
+    L = retiming.timing_opt(mpath, tpath, opath)
+    visual.visual_retiming(L, tpath, orpath, rtpath)
+    print('Retiming frame-mapping saved at path %s' % opath)
+    print('Retiming target videos saved at path %s and %s' % (orpath, rtpath))
+
+def step4_composite(pass_id, inp_id, tar_id):
+    pass
 
 if __name__ == '__main__':
     pass_id = "std_u"
@@ -72,4 +91,6 @@ if __name__ == '__main__':
     sq = a2v.Square(0.2, 0.8, 0.4, 1.15)
     # step0_dataset()
     # step1_lipsyn(pass_id=pass_id, train=False, predict=True, inp_id=inp_id, outp_norm=False)
-    step2_lfacesyn(pass_id, inp_id, tar_id, sq)
+    # step2_lfacesyn(pass_id, inp_id, tar_id, sq)
+    # step3_retiming(pass_id, inp_id, tar_id)
+    step4_composite(pass_id, inp_id, tar_id)

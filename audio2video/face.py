@@ -42,7 +42,7 @@ class LandmarkIndex():
 
 def get_landmark(img, idx, norm):
     dets = detector(img, 1)
-    if len(dets) != 1:
+    if len(dets) == 0:
         return None, None
 
     det = dets[0]

@@ -39,5 +39,47 @@ def visual_lfacesyn(txtrs, mpath, vpath, tmppath):
         writer.write(frame)
     combine_vm(tmppath, mpath, vpath)
     
+def visual_retiming(L, tpath, orpath, rtpath):
+    from retiming import half_warp
+    # read in all frames of target video
+    print('Start forming new retimed target video...')
+    cap = cv2.VideoCapture(tpath)
+    writer1 = cv2.VideoWriter(rtpath, cv2.VideoWriter_fourcc(*'mp4v'), vfps, size)
+    
+    cap.set(cv2.CAP_PROP_POS_FRAMES, L[0])
+    ret, firstfr = cap.read()
+    assert(ret)
+    writer1.write(firstfr)
+
+    cap.set(cv2.CAP_PROP_POS_FRAMES, L[1])
+    ret, prefr = cap.read()
+    assert(ret)
+    for i in range(2, L.shape[0]):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, L[i])
+        ret, curfr = cap.read()
+        assert(ret)
+        
+        # check and warp the duplicate frames
+        if L[i-2] == L[i-1]:
+            tmpfr1 = half_warp(prefr, curfr).astype(np.int)
+            tmpfr2 = half_warp(curfr, prefr).astype(np.int)            
+            prefr = ((tmpfr1 + tmpfr2) / 2).astype(np.uint8)
+        
+        writer1.write(prefr)
+        prefr = curfr
+
+    writer1.write(prefr)
+    print('Done')
+    
+    print('Start forming new NON-retimed target video...')
+    writer2 = cv2.VideoWriter(orpath, cv2.VideoWriter_fourcc(*'mp4v'), vfps, size)
+    startfr = int(L[0])
+    for idxfr in range(startfr, startfr+len(L)):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, idxfr)
+        ret, curfr = cap.read()
+        assert(ret)
+        writer2.write(curfr)
+    print('Done')
+    
 if __name__ == '__main__':
     pass
