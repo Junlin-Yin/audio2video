@@ -17,8 +17,12 @@ mean, std = data['mean'], data['std']
 boundL = mean - k*std
 boundU = mean + k*std
 
+teeth_hsv_lower  = np.array([0, 0, 60])
+teeth_hsv_upper  = np.array([180, 150, 255])
+
 black_lower = np.array([0, 0, 0])
 black_upper = np.array([180, 255, 46])
+
 white_lower = np.array([0, 0, 46])
 white_upper = np.array([180, 50, 255])
 
@@ -62,9 +66,9 @@ def preprocess(mp4_path, save_path, rsize, startfr=0, endfr=None):
             continue
 
         # validate landmarks using statistics in the dataset
-        if np.sum(np.logical_or(ldmk < boundL, ldmk > boundU)) > 0:
-            continue
-        landmarks.append(ldmk.flatten())
+        # if np.sum(np.logical_or(ldmk < boundL, ldmk > boundU)) > 0:
+        #     continue
+        landmarks.append(ldmk)
         
         # resize texture into a square
         txtr = img[det.top():det.top()+det.height(), det.left():det.left()+det.width()]
@@ -77,11 +81,11 @@ def preprocess(mp4_path, save_path, rsize, startfr=0, endfr=None):
     textures = np.array(textures)
     
     # filter frames which are not locally smooth
-    approx = (landmarks[2:, :] + landmarks[:-2, :]) / 2
-    L2 = np.linalg.norm(landmarks[1:-1, :]-approx, ord=2, axis=1)
-    check = (L2 <= 0.1).nonzero()
-    landmarks = landmarks[1:-1][check].reshape((-1, 20, 2))
-    textures  = textures[1:-1][check]
+    # approx = (landmarks[2:, :] + landmarks[:-2, :]) / 2
+    # L2 = np.linalg.norm(landmarks[1:-1, :]-approx, ord=2, axis=1)
+    # check = (L2 <= 0.1).nonzero()
+    # landmarks = landmarks[1:-1][check].reshape((-1, 20, 2))
+    # textures  = textures[1:-1][check]
     
     np.savez(save_path, landmarks=landmarks, textures=textures)
 

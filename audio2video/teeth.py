@@ -7,9 +7,6 @@ import numpy as np
 from face import get_landmark, LandmarkIndex
 from __init__ import Square, ref_dir
 
-teeth_hsv_lower  = np.array([0, 0, 60])
-teeth_hsv_upper  = np.array([180, 150, 255])
-
 uppermostidx = np.array([12, 13, 14, 15, 16])
 lowermostidx = np.array([12, 19, 18, 17, 16])
 
