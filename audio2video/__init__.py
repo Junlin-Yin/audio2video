@@ -32,4 +32,8 @@ class Square:
         upper = round(self.up    * S + padw)
         lower = round(self.down  * S + padw)
         return left, right, upper, lower
-        
+
+    def getrsize(self, sp):
+        rs1 = sp[1] / (self.right - self.left)
+        rs2 = sp[0] / (self.down - self.up)
+        return round((rs1+rs2)/2)

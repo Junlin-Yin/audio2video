@@ -11,6 +11,7 @@ import cv2
 
 vfps = 30
 size  = (1280, 720)
+final_WH = (662, 373)
 rsize = 300
 start = (440, 160)
 
@@ -80,6 +81,29 @@ def visual_retiming(L, tpath, orpath, rtpath):
         assert(ret)
         writer2.write(curfr)
     print('Done')
+    
+def visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath):
+    from composite import syn_frame
+    syndata = np.load(ipath)
+    cap = cv2.VideoCapture(tpath)
+    writer = cv2.VideoWriter(tmppath, cv2.VideoWriter_fourcc(*'DIVX'), vfps, size)
+    nfr = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+#    nfr = 300
+    
+    for i in range(nfr):
+        print('%s: %04d/%04d' % (vpath, i+1, nfr))
+        ret, tarfr = cap.read()
+        assert(ret)
+        
+        syntxtr = syndata[i] if i < syndata.shape[0] else syndata[-1]
+        frame_ = syn_frame(tarfr, syntxtr, sq, padw)
+        frame_ = cv2.resize(frame_, final_WH)
+        frame = np.zeros((size[1], size[0], 3), dtype=np.uint8)
+        left, upper = start
+        frame[upper:upper+frame_.shape[0], left:left+frame_.shape[1], :] = frame_
+        writer.write(frame)
+    combine_vm(tmppath, mpath, vpath)
+    return vpath
     
 if __name__ == '__main__':
     pass

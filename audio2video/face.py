@@ -89,9 +89,10 @@ def resize(img, det, p2d, detw=200, padw=60):
     
     img_ = img_[top-padw:top+detw+padw, left-padw:left+detw+padw, :]
     p2d_ -= (left-padw, top-padw)
-    transM = np.array([[ratio, 0, 0], [0, ratio, 0], [2*padw-left, 2*padw-top, 1]])
+    transM = np.array([[1, 0, 0], [0, 1, 0], [2*padw-left, 2*padw-top, 1]])
+    scaleM = np.array([[ratio, 0, 0], [0, ratio, 0], [0, 0, 1]])
     
-    return img_, p2d_, transM
+    return img_, p2d_, transM, scaleM, img_2.shape
 
 class frontalizer():
     def __init__(self,refname):
@@ -105,6 +106,8 @@ class frontalizer():
             self.refxy = ref['ref_XY']
             self.p3d = ref['p3d']
             self.refimg = ref['refimg']
+            self.padw = 95
+            self.detw = 130
     def get_headpose(self,p2d):
         assert(len(p2d) == len(self.p3d))
         p3_ = np.reshape(self.p3d,(-1,3,1)).astype(np.float)
@@ -125,7 +128,7 @@ class frontalizer():
     def frontalization(self, img_, facebb, p2d_):
         #we rescale the face region (twice as big as the detected face) before applying frontalisation
         ACC_CONST = 0
-        img, p2d, TransM = resize(img_, facebb, p2d_)
+        img, p2d, TransM, ScaleM, tmpshape = resize(img_, facebb, p2d_)
        
         tem3d = np.reshape(self.refU,(-1,3),order='F')
         bgids = tem3d[:,1] < 0# excluding background 3d points 
@@ -187,7 +190,7 @@ class frontalizer():
             frontal_sym = (rawfrontal * weights + rawfrontal * weight_take_from_org + np.fliplr(rawfrontal) * weight_take_from_sym) / denominator
         else:
             frontal_sym = rawfrontal
-        return rawfrontal, frontal_sym, ProjM, TransM
+        return rawfrontal, frontal_sym, ProjM, TransM, ScaleM, tmpshape
 
 fronter  = frontalizer(ref3dir)
 
@@ -203,19 +206,18 @@ def facefrontal(img, detail=False):
     if det is None or p2d is None:
         return None
         
-    rawfront, symfront, projM, transM = fronter.frontalization(img, det, p2d)
+    rawfront, symfront, projM, transM, scaleM, tmpshape = fronter.frontalization(img, det, p2d)
     newimg = symfront.astype('uint8')
     if detail == False:
         return newimg
     else:
-        return newimg, p2d, projM, transM
+        return newimg, p2d, projM, transM, scaleM, tmpshape
         
-def warp_mapping(fronter, indices, pixels, tarfr, tarldmk, projM, transM, ksize=10):
+def warp_mapping(indices, pixels, tmpshape, tmpldmk, projM, transM, ksize=10):
     # frontal points -> original resized points
     pt3d = fronter.refU[indices[:, 1], indices[:, 0], :]        # (N, 3)
     pt3d_homo = np.insert(pt3d, 3, [1]*pt3d.shape[0], axis=1)   # (N, 4)
     pt2d_homo = np.matmul(pt3d_homo, projM.T)                   # (N, 3)
-#    pt2d_homo = pt2d_homo / pt2d_homo[:, 2][:, np.newaxis]
     
     # original resized points -> true original points
     opt2d_homo = np.matmul(pt2d_homo, np.linalg.inv(transM))    # (N, 3)
@@ -227,14 +229,14 @@ def warp_mapping(fronter, indices, pixels, tarfr, tarldmk, projM, transM, ksize=
     # skip this part for the moment, and complete it if necessary
     
     # define the region in the original frame field to be recalculated
-    warp_mask = np.zeros(tarfr.shape[:2], dtype=np.uint8)
+    warp_mask = np.zeros(tmpshape[:2], dtype=np.uint8)
     warp_mask[opt2d_grid[:, 1], opt2d_grid[:, 0]] = 255
     kernel = np.ones((ksize, ksize), dtype=np.uint8)
     warp_mask = cv2.morphologyEx(warp_mask, cv2.MORPH_CLOSE, kernel)
     
-    face_contour = tarldmk[[2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-                            12, 13, 14, 35, 34, 33, 32, 31], :].astype(np.int)
-    face_mask = np.zeros(tarfr.shape[:2], dtype=np.uint8)
+    ctr_idx = LandmarkIndex.CONTOUR_FACE
+    face_contour = tmpldmk[ctr_idx, :].astype(np.int)
+    face_mask = np.zeros(tmpshape[:2], dtype=np.uint8)
     face_mask = cv2.drawContours(face_mask, [face_contour], -1, 255, -1)
     
     # eliminate region that is out of face landmarks
@@ -242,7 +244,7 @@ def warp_mapping(fronter, indices, pixels, tarfr, tarldmk, projM, transM, ksize=
     ys, xs = warp_mask.nonzero()
     region = np.array([(x, y) for x, y in zip(xs, ys)])     # (N, 2)
     
-    return warp_mask, region, opt2d, pixels
+    return warp_mask, face_mask, region, opt2d, pixels
 
 if __name__ == "__main__":
     from __init__ import test_dir
