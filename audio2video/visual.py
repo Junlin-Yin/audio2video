@@ -91,7 +91,7 @@ def visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath):
 #    nfr = 300
     
     for i in range(nfr):
-        print('%s: %04d/%04d' % (vpath, i+1, nfr))
+        print('%s: %04d/%04d' % (tmppath, i+1, nfr))
         ret, tarfr = cap.read()
         assert(ret)
         

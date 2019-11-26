@@ -134,10 +134,6 @@ def reduce_dim():
         feature_list.append(fea)
 
     features = np.vstack(feature_list)
-    mean = np.mean(features, axis=0).reshape((20, 2))
-    std  = np.std(features, axis=0).reshape((20, 2))
-    np.savez('%s/stat.npz' % ref_dir, mean=mean, std=std)
-    print('ldmk stat saved')
 
     eigvector, eigvalue = PCA(features)
     A = eigvector[:,:20]        # A.shape = (40, 20)
