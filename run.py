@@ -69,7 +69,7 @@ def step2_lfacesyn(pass_id, inp_id, tar_id, sq, rsize=300, padw=100, preproc=Fal
     visual.visual_lfacesyn(txtrs, mpath, vpath, tmppath)
     print('Lower face synthesized at path %s' % vpath)
     
-def step3_retiming(pass_id, inp_id, tar_id):
+def step3_retiming(inp_id, tar_id):
     mpath   = '%s/mp3/a%s.mp3' % (inp_dir, inp_id)
     tpath   = '%s/mp4/t%s.mp4' % (tar_dir, tar_id)
     orpath  = '%s/a%st%s/tgtor.mp4' % (outp_dir, inp_id, tar_id)
@@ -81,7 +81,7 @@ def step3_retiming(pass_id, inp_id, tar_id):
     print('Retiming frame-mapping saved at path %s' % opath)
     print('Retiming target videos saved at path %s and %s' % (orpath, rtpath))
 
-def step4_composite(pass_id, inp_id, tar_id, sq, padw=100, rt=True):
+def step4_composite(inp_id, tar_id, sq, padw=100, rt=True):
     ipath       = '%s/a%st%s/lface.npy' % (outp_dir, inp_id, tar_id)
     mpath       = '%s/mp3/a%s.mp3' % (inp_dir, inp_id)
     tpath       = '%s/a%st%s/tgt%s.mp4' % (outp_dir, inp_id, tar_id, 'rt' if rt else 'or')
@@ -91,6 +91,15 @@ def step4_composite(pass_id, inp_id, tar_id, sq, padw=100, rt=True):
     visual.visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath)
     print('Final video synthesized at path %s' % vpath)
 
+def clean_tmp(pass_id, inp_id, tar_id):
+    import os, glob
+    f1 = glob.glob('%s/vis/%s/*.avi' % (inp_dir, pass_id))
+    f2 = glob.glob('%s/a%st%s/*.avi' % (outp_dir, inp_id, tar_id))
+    for f in (f1 + f2):
+        os.remove(os.path.abspath(f))
+        print('Remove: %s' % os.path.abspath(f))
+    print('Done')
+
 if __name__ == '__main__':
     pass_id = "std_u"
     inp_id  = "036"
@@ -99,5 +108,6 @@ if __name__ == '__main__':
     # step0_dataset()
     # step1_lipsyn(pass_id=pass_id, train=False, predict=True, inp_id=inp_id, outp_norm=False)
     # step2_lfacesyn(pass_id, inp_id, tar_id, sq)
-    # step3_retiming(pass_id, inp_id, tar_id)
-    step4_composite(pass_id, inp_id, tar_id, sq)
+    # step3_retiming(inp_id, tar_id)
+    step4_composite(inp_id, tar_id, sq)
+    # clean_tmp(pass_id, inp_id, tar_id)

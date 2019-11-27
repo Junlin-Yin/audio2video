@@ -4,6 +4,7 @@ import cv2
 from __init__ import Square
 from visual import vfps, size
 from face import facefrontal, warp_mapping, fronter, get_landmark, LandmarkIndex
+from mouth import sharpen
 import numpy as np
 
 def getGaussianPyr(img, layers):
@@ -129,8 +130,9 @@ def warpback(face, tarfr, tarldmk, indices, projM, transM, scaleM, tmpshape):
     envfr, ufacefr = tarfr & (~env_mask[:, :, np.newaxis]), tarfr & env_mask[:, :, np.newaxis]
     
     # blend lower and upper face
-    lfacefr = cv2.inpaint(lfacefr, ~warp_mask, 10, cv2.INPAINT_TELEA)    
     ufacefr = cv2.inpaint(ufacefr, ~env_mask, 10, cv2.INPAINT_TELEA)
+    lfacefr = cv2.inpaint(lfacefr, ~warp_mask, 10, cv2.INPAINT_TELEA) 
+    lfacefr = sharpen(lfacefr)   
     facefr  = pyramid_blend(lfacefr, ufacefr, warp_mask)
     
     # combine face and environment
