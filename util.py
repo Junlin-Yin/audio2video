@@ -38,5 +38,22 @@ def test_sharp():
             spec[H*y:H*y+H, W*x:W*x+W] = tmp
     cv2.imwrite('../tmp/k=0.7.png', spec)
 
+def test_facedet():
+    import cv2
+    from audio2video.visual import vfps, size
+    face_cascade = cv2.CascadeClassifier('../tmp/haarcascade_frontalface_default.xml')
+    cap = cv2.VideoCapture('../target/mp4/t001.mp4')
+    nfr = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    writer = cv2.VideoWriter('../tmp/newdet.mp4', cv2.VideoWriter_fourcc(*'mp4v'), vfps, size)
+    for i in range(nfr):
+        ret, frame = cap.read()
+        assert(ret)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        x, y, w, h = face_cascade.detectMultiScale(gray, minSize=(400, 400))[0]
+        cv2.rectangle(frame, (x,y), (x+w,y+h), (0, 0, 255), 2)
+        writer.write(frame)
+        print('../tmp/newdet.mp4: %04d/%04d' % (i+1, nfr), w)
+    print('Done')    
+
 if __name__ == '__main__':
     pass

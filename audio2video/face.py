@@ -211,7 +211,7 @@ def facefrontal(img, detail=False):
     if detail == False:
         return newimg
     else:
-        return newimg, p2d, projM, transM, scaleM, tmpshape
+        return newimg, det, p2d, projM, transM, scaleM, tmpshape
         
 def warp_mapping(indices, pixels, tmpshape, tmpldmk, projM, transM, ksize=10):
     # frontal points -> original resized points

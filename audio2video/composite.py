@@ -57,22 +57,6 @@ def pyramid_blend(img1, img2, mask_, layers=4):
     img = reconstruct(initG, BLappyr)
     return img
 
-def getindices(ftl_face, sq, fpadw=fronter.padw, fdetw=fronter.detw):
-    # get mask region using boundary, chin landmarks and nose landmarks
-    # boundary region: left -> right, upper -> lower
-    WH = ftl_face.shape[0]
-    boundary = sq.align(fdetw, fpadw)
-    left, right, upper, lower = np.array(boundary)
-    indices = np.array([(x, y) for x in range(left, right) for y in range(upper, lower)])
-    
-    # get landmarks of frontalized face
-    _, ldmk = get_landmark(ftl_face, LandmarkIndex.FULL, norm=False)
-    chin_xp, chin_fp = ldmk[ 3:14, 0], ldmk[ 3:14, 1]
-    chin_line = np.interp(np.arange(WH), chin_xp, chin_fp)
-
-    # filter the position which is out of chin line and nose line    
-    return indices[indices[:, 1] < chin_line[indices[:, 0]]]
-
 def align2target(syntxtr, sq, spadw, fpadw=fronter.padw, fdetw=fronter.detw):
     # align lower-face to target frame
 #   |padw| detw  |padw|
@@ -103,6 +87,25 @@ def align2target(syntxtr, sq, spadw, fpadw=fronter.padw, fdetw=fronter.detw):
         syn_face[fpadw-spadw:fpadw+fdetw+spadw, fpadw-spadw:fpadw+fdetw+spadw, :] = syn_face_
     
     return syn_face
+
+def jaw_adjust(syn_face, tarfr, det, p2d):
+    return syn_face
+
+def getindices(ftl_face, sq, fpadw=fronter.padw, fdetw=fronter.detw):
+    # get mask region using boundary, chin landmarks and nose landmarks
+    # boundary region: left -> right, upper -> lower
+    WH = ftl_face.shape[0]
+    boundary = sq.align(fdetw, fpadw)
+    left, right, upper, lower = np.array(boundary)
+    indices = np.array([(x, y) for x in range(left, right) for y in range(upper, lower)])
+    
+    # get landmarks of frontalized face
+    _, ldmk = get_landmark(ftl_face, LandmarkIndex.FULL, norm=False)
+    chin_xp, chin_fp = ldmk[ 3:14, 0], ldmk[ 3:14, 1]
+    chin_line = np.interp(np.arange(WH), chin_xp, chin_fp)
+
+    # filter the position which is out of chin line and nose line    
+    return indices[indices[:, 1] < chin_line[indices[:, 0]]]
 
 def recalc_pixel(pt, coords, pixels, thr=5, sigma=0.5):
     L2 = np.linalg.norm(coords-pt, ord=2, axis=1)
@@ -142,10 +145,13 @@ def warpback(face, tarfr, tarldmk, indices, projM, transM, scaleM, tmpshape):
 
 def syn_frame(tarfr, syntxtr, sq, padw):
     # frontalize the target frame
-    ftl_face, ldmk, projM, transM, scaleM, tmpshape = facefrontal(tarfr, detail=True)
+    ftl_face, det, ldmk, projM, transM, scaleM, tmpshape = facefrontal(tarfr, detail=True)
     
     # align lower-face to target frame
     syn_face = align2target(syntxtr, sq, padw)
+
+    # jaw-correction
+    syn_face = jaw_adjust(syn_face, tarfr, det, ldmk)
    
     # get indices of pixels in ftl_face which needs to be blended into target frame
     indices = getindices(ftl_face, sq)
@@ -154,11 +160,11 @@ def syn_frame(tarfr, syntxtr, sq, padw):
     return warpback(syn_face, tarfr, ldmk, indices, projM, transM, scaleM, tmpshape)
    
 def test1():
-    syntxtr = cv2.imread('../tmp/s95.png')
-    tarfr = cv2.imread('../tmp/t95.png')
+    syntxtr = cv2.imread('../tmp/s1490.png')
+    tarfr = cv2.imread('../tmp/t1490.png')
     sq = Square(0.2, 0.8, 0.4, 1.15)
     outpfr = syn_frame(tarfr, syntxtr, sq, 100)
-    cv2.imwrite('../tmp/o95.png', outpfr)
+    cv2.imwrite('../tmp/o1490.png', outpfr)
 
 if __name__ == '__main__':
     test1()
