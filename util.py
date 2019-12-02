@@ -38,22 +38,60 @@ def test_sharp():
             spec[H*y:H*y+H, W*x:W*x+W] = tmp
     cv2.imwrite('../tmp/k=0.7.png', spec)
 
-def test_facedet():
-    import cv2
-    from audio2video.visual import vfps, size
-    face_cascade = cv2.CascadeClassifier('../tmp/haarcascade_frontalface_default.xml')
+def test_facedet1():
+    import cv2, numpy as np
+    from face import facefrontal
+#    from audio2video import detector, predictor
     cap = cv2.VideoCapture('../target/mp4/t001.mp4')
     nfr = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    writer = cv2.VideoWriter('../tmp/newdet.mp4', cv2.VideoWriter_fourcc(*'mp4v'), vfps, size)
     for i in range(nfr):
         ret, frame = cap.read()
         assert(ret)
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        x, y, w, h = face_cascade.detectMultiScale(gray, minSize=(400, 400))[0]
-        cv2.rectangle(frame, (x,y), (x+w,y+h), (0, 0, 255), 2)
-        writer.write(frame)
-        print('../tmp/newdet.mp4: %04d/%04d' % (i+1, nfr), w)
-    print('Done')    
+        old_frontal = facefrontal(frame, new=False)
+        new_frontal = facefrontal(frame, new=True)
+        center = cv2.resize(frame, (569, 320))
+        img = np.zeros((320, 1209, 3), dtype=np.uint8)
+        img[:, :320, :] = old_frontal
+        img[:, 320:889, :] = center
+        img[:, 889:, :] = new_frontal
+        cv2.imwrite('../tmp/frontal/%04d.png' % i, img)
+        print('../tmp/frontal: %04d/%04d' % (i+1, nfr))
+    print('Done')
+    
+def test_facedet2():
+    import cv2, numpy as np
+    from face import get_landmark, get_landmark_new, LandmarkIndex as LI
+    cap = cv2.VideoCapture('../target/mp4/t001.mp4')
+    nfr = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    OLD, NEW = [], []
+#    HW = 400
+    for i in range(nfr):
+        ret, frame = cap.read()
+        assert(ret)
+        _, oldmk = get_landmark(frame, LI.FULL, norm=True)
+        _, nldmk = get_landmark_new(frame, LI.FULL, norm=True)
+#        img = np.zeros((HW, HW, 3), np.uint8)
+#        for pt in oldmk*HW:
+#            x, y = pt.astype(np.int)
+#            cv2.circle(img, (x, y), 2, (0, 0, 255))
+#        for pt in nldmk*HW:
+#            x, y = pt.astype(np.int)
+#            cv2.circle(img, (x, y), 2, (255, 255, 0))
+#        cv2.imwrite('../tmp/smooth/%04d.png' % i, img)
+        OLD.append(oldmk)
+        NEW.append(nldmk)
+        print('../tmp/smooth: %04d/%04d' % (i+1, nfr))
+    OLD, NEW = np.array(OLD), np.array(NEW)
+    OLDL2, NEWL2 = difL2(OLD), difL2(NEW)
+    np.savez('../tmp/smooth.npz', old=OLDL2, new=NEWL2)
+    
+def difL2(FIDS):
+    import numpy as np
+    # FIDS.shape == (nfr, 68, 2)
+    avg_FIDS = (FIDS[2:] + FIDS[:-2])/2             #(nfr-2, 68, 2)
+    dif_FIDS = FIDS[1:-1] - avg_FIDS
+    L2 = np.linalg.norm(dif_FIDS, ord=2, axis=2)    #(nfr-2, 68)
+    return L2
 
 if __name__ == '__main__':
-    pass
+    test_facedet2()

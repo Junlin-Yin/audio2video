@@ -56,6 +56,22 @@ def get_landmark(img, idx, norm):
 
     return det, landmarks[idx]
 
+def get_landmark_new(img, idx, norm):
+    import dlib
+    face_cascade = cv2.CascadeClassifier('../tmp/haarcascade_frontalface_default.xml')
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    x, y, w, h = face_cascade.detectMultiScale(gray, minSize=(400, 400))[0]
+    det = dlib.rectangle(x, y, x+w, y+h)
+    shape = predictor(gray, det)
+    landmarks = np.asarray([(shape.part(n).x, shape.part(n).y) for n in range(shape.num_parts)], np.float32)
+    
+    if norm:
+        origin = np.array([det.left(), det.top()])
+        size = np.array([det.width(), det.height()])
+        landmarks = (landmarks - origin) / size         # restrained in [0, 0] ~ [1, 1]
+
+    return det, landmarks[idx]
+
 def plot3d(p3ds):
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
@@ -195,17 +211,17 @@ class frontalizer():
 fronter  = frontalizer(ref3dir)
 
 
-def facefrontal(img, detail=False):
+def facefrontal(img, detail=False, new=False):
     '''
     ### parameters
     img: original image to be frontalized \\
     ### retval
     newimg: (320, 320, 3), frontalized image
     '''
-    det, p2d = get_landmark(img, LandmarkIndex.FULL, norm=False)
+    func = get_landmark if new == False else get_landmark_new
+    det, p2d = func(img, LandmarkIndex.FULL, norm=False)
     if det is None or p2d is None:
         return None
-        
     rawfront, symfront, projM, transM, scaleM, tmpshape = fronter.frontalization(img, det, p2d)
     newimg = symfront.astype('uint8')
     if detail == False:
