@@ -1,5 +1,5 @@
 import os
-import dlib
+import cv2, dlib
 
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 inp_dir  = '../input'
@@ -14,9 +14,10 @@ trn_dir  = '../train'
 raw_mfcc_dir = '%s/mfcc' % raw_dir
 raw_fids_dir = '%s/fids' % raw_dir
 
+detdir  = '%s/haarcascade_frontalface_default.xml' % ref_dir
 pdctdir = '%s/shape_predictor_68_face_landmarks.dat' % ref_dir
 ref3dir = '%s/ref3d.pkl' % ref_dir
-detector = dlib.get_frontal_face_detector()
+detector = cv2.CascadeClassifier(detdir)
 predictor = dlib.shape_predictor(pdctdir)
 
 class Square:

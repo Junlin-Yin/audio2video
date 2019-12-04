@@ -16,10 +16,10 @@ heng.yang@cl.cam.ac.uk
 '''
 
 import numpy as np 
-import cv2
+import cv2, dlib
 import pickle as pkl
 from scipy import ndimage
-from __init__ import ref3dir, detector, predictor
+from __init__ import ref3dir
 
 class LandmarkIndex():
     CHEEK = list(range(0, 17))
@@ -40,27 +40,33 @@ class LandmarkIndex():
     CONTOUR_FACE  = CHEEK + BROWS[::-1]
     CONTOUR_TEETH = LIPI
 
-def get_landmark(img, idx, norm):
-    dets = detector(img, 1)
-    if len(dets) == 0:
-        return None, None
+def get_landmark(img, idx, norm, detector=None, predictor=None, mean=None, debug=False):
+    if detector is None:
+        from __init__ import detector
+    if predictor is None:
+        from __init__ import predictor
 
-    det = dets[0]
-    shape = predictor(img, det)
-    landmarks = np.asarray([(shape.part(n).x, shape.part(n).y) for n in range(shape.num_parts)], np.float32)
-    
-    if norm:
-        origin = np.array([det.left(), det.top()])
-        size = np.array([det.width(), det.height()])
-        landmarks = (landmarks - origin) / size         # restrained in [0, 0] ~ [1, 1]
-
-    return det, landmarks[idx]
-
-def get_landmark_new(img, idx, norm):
-    import dlib
-    face_cascade = cv2.CascadeClassifier('../tmp/haarcascade_frontalface_default.xml')
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    x, y, w, h = face_cascade.detectMultiScale(gray, minSize=(400, 400))[0]
+    dets = detector.detectMultiScale(gray, minSize=(150, 150))
+    if len(dets) == 0:
+        print('[Warning] Using alternative cascade classifier (face.py)...')
+        detector_alt = dlib.get_frontal_face_detector()
+        dets = detector_alt(img, 1)
+        dets = [(det.left(), det.top(), det.width(), det.height()) for det in dets]
+        if len(dets) == 0:
+            return None, None
+    if debug: print(dets)
+
+    def getkey(det):
+        pt1 = np.array([det[0], det[1], det[2]])
+        pt2 = np.array(mean)
+        return np.linalg.norm(pt1-pt2, ord=2)
+    if mean is None:
+        dets = sorted(dets, key=lambda x: x[2], reverse=True)
+    else:
+        dets = sorted(dets, key=getkey, reverse=False)
+    x, y, w, h = dets[0]
+
     det = dlib.rectangle(x, y, x+w, y+h)
     shape = predictor(gray, det)
     landmarks = np.asarray([(shape.part(n).x, shape.part(n).y) for n in range(shape.num_parts)], np.float32)
@@ -71,6 +77,29 @@ def get_landmark_new(img, idx, norm):
         landmarks = (landmarks - origin) / size         # restrained in [0, 0] ~ [1, 1]
 
     return det, landmarks[idx]
+
+def test_cvdet(subdir, fr, idx):
+    import glob
+    from __init__ import raw_dir
+    mp4f = glob.glob('%s/mp4/*_%s.mp4' % (raw_dir, subdir))[0]
+    with open('%s/fids/%s}}%02d/stat.txt' % (raw_dir, subdir, idx)) as f:
+        s = f.read()
+        mean = [float(i) for i in s.split()]
+    cap = cv2.VideoCapture(mp4f)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, fr)
+    _, frame = cap.read()
+    det, p2d = get_landmark(frame, LandmarkIndex.FULL, False, mean=mean, debug=True)
+    ft = facefrontal(frame, mean=mean)
+    print(det.left(), det.top(), det.width(), det.height())
+    # if det is not None and p2d is not None:
+    x0, y0, x1, y1 = det.left(), det.top(), det.right(), det.bottom()
+    cv2.rectangle(frame, (x0, y0), (x1, y1), (0, 0, 255), 3)
+    for pt in p2d:
+        cv2.circle(frame, tuple(pt), 3, (0, 255, 0), -1)
+    det, p2d = get_landmark(ft, LandmarkIndex.FULL, False)
+    cv2.imshow('f', frame)
+    cv2.imshow('s', ft)
+    cv2.waitKey(0)
 
 def plot3d(p3ds):
     import matplotlib.pyplot as plt
@@ -211,15 +240,14 @@ class frontalizer():
 fronter  = frontalizer(ref3dir)
 
 
-def facefrontal(img, detail=False, new=False):
+def facefrontal(img, detail=False, detector=None, predictor=None, mean=None):
     '''
     ### parameters
     img: original image to be frontalized \\
     ### retval
     newimg: (320, 320, 3), frontalized image
     '''
-    func = get_landmark if new == False else get_landmark_new
-    det, p2d = func(img, LandmarkIndex.FULL, norm=False)
+    det, p2d = get_landmark(img, LandmarkIndex.FULL, False, detector, predictor, mean)
     if det is None or p2d is None:
         return None
     rawfront, symfront, projM, transM, scaleM, tmpshape = fronter.frontalization(img, det, p2d)
@@ -262,9 +290,7 @@ def warp_mapping(indices, pixels, tmpshape, tmpldmk, projM, transM, ksize=10):
     
     return warp_mask, face_mask, region, opt2d, pixels
 
+
 if __name__ == "__main__":
-    from __init__ import test_dir
-    img = cv2.imread('%s/0660.png' % test_dir)
-    fimg = facefrontal(img, fronter)
-    cv2.imshow('test', fimg)
-    cv2.waitKey(0)
+    pass
+    # test_cvdet('6cKIPvfvxKo', 3842, 2)

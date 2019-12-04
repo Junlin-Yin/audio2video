@@ -42,7 +42,7 @@ def test_facedet1():
     import cv2, numpy as np
     from face import facefrontal
 #    from audio2video import detector, predictor
-    cap = cv2.VideoCapture('../target/mp4/t001.mp4')
+    cap = cv2.VideoCapture('../target/t001.mp4')
     nfr = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     for i in range(nfr):
         ret, frame = cap.read()
@@ -93,5 +93,29 @@ def difL2(FIDS):
     L2 = np.linalg.norm(dif_FIDS, ord=2, axis=2)    #(nfr-2, 68)
     return L2
 
+def test_facedet3():
+    import cv2, numpy as np
+    from visual import vfps, size
+    from face import facefrontal, get_landmark, LandmarkIndex as LI
+
+    cap = cv2.VideoCapture('../raw/mp4/280_i2yQJ5VCHA0.mp4')
+    writer = cv2.VideoWriter('../tmp/mindet.mp4', cv2.VideoWriter_fourcc(*'mp4v'), vfps, size)
+    nfr = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 157)
+    with open('../raw/fids/i2yQJ5VCHA0}}00/stat.txt') as f:
+        s = f.read()
+        mean = [float(i) for i in s.split()]
+    print(mean)
+    for i in range(157, 157+468):
+        ret, frame = cap.read()
+        assert(ret)
+        det, p2d = get_landmark(frame, LI.FULL, False, mean=mean)
+        if det is not None and p2d is not None:
+            x0, y0, x1, y1 = det.left(), det.top(), det.right(), det.bottom()
+            cv2.rectangle(frame, (x0, y0), (x1, y1), (0, 0, 255), 3)
+        writer.write(frame)
+        print('../tmp/frontal: %04d/%04d' % (i+1, nfr))
+    print('Done')
+    
 if __name__ == '__main__':
-    test_facedet2()
+    add_missing_fids()
