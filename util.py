@@ -116,6 +116,22 @@ def test_facedet3():
         writer.write(frame)
         print('../tmp/frontal: %04d/%04d' % (i+1, nfr))
     print('Done')
+
+def clip_target(tar_id, ti, tf):
+    from audio2video.__init__ import raw_dir, tar_dir
+    from audio2video.visual import vfps, size
+    import cv2, glob, os
+    startfr, endfr = round(ti*vfps), round(tf*vfps)
+    mp4file = glob.glob('%s/mp4/%s_*.mp4' % (raw_dir, tar_id))[0]
+    writer = cv2.VideoWriter('%s/mp4/t%s.mp4' % (tar_dir, tar_id), cv2.VideoWriter_fourcc(*'mp4v'), vfps, size)
+    cap = cv2.VideoCapture(mp4file)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, startfr)
+    for i in range(startfr, endfr):
+        ret, frame = cap.read()
+        assert(ret)
+        writer.write(frame)
+        print('%04d --> %04d --> %04d' % (startfr, i, endfr-1))
+    print('Done')
     
 if __name__ == '__main__':
-    add_missing_fids()
+    pass

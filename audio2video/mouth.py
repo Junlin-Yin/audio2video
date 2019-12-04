@@ -16,11 +16,12 @@ black_upper = np.array([180, 255, 46])
 white_lower = np.array([0, 0, 46])
 white_upper = np.array([180, 50, 255])
 
-def mask_inpaint(img):
+def mask_inpaint(img, ksize=3):
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     mask1 = cv2.inRange(hsv, black_lower, black_upper)
     mask2 = cv2.inRange(hsv, white_lower, white_upper)
     mask = mask1 | mask2
+    # mask = cv2.dilate(mask, np.ones((ksize, ksize), dtype=np.uint8))
     mimg = cv2.inpaint(img, mask, 10, cv2.INPAINT_TELEA)
     return mimg
         
@@ -44,7 +45,7 @@ def preprocess(mp4_path, save_path, rsize, padw, startfr=0, endfr=None):
     while cap.isOpened():
         if cnt == endfr:
             break
-        print("%04d/%04d" % (cnt, endfr-1))
+        print("%s: %04d/%04d" % (save_path, cnt, endfr-1))
         cnt += 1
         
         ret, img_ = cap.read()
@@ -59,6 +60,8 @@ def preprocess(mp4_path, save_path, rsize, padw, startfr=0, endfr=None):
         # resize texture and inpaint the blank part
         txtr = resize(img, det, ldmk, detw=rsize, padw=padw)[0]
         txtr = mask_inpaint(txtr)
+        # cv2.imshow('txtr', txtr)
+        # cv2.waitKey(0)
         textures.append(txtr)
         
     landmarks = np.array(landmarks)

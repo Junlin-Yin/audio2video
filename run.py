@@ -104,7 +104,7 @@ def clean_tmp(pass_id, inp_id, tar_id):
 if __name__ == '__main__':
     pass_id = "std_u"
     inp_id  = "015"
-    tar_id  = "001"
+    tar_id  = "187"
     sq = a2v.Square(0.2, 0.8, 0.4, 1.15)
     # step0_dataset()
     # step1_lipsyn(pass_id=pass_id, train=False, predict=True, inp_id=inp_id, outp_norm=False)

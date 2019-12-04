@@ -19,7 +19,7 @@ def select_proxy(tar_path, mode, fr):
         os.remove(f)
     cv2.imwrite('%s/proxy_%s_%04d.png' % (ref_dir, mode, fr), img)
 
-def process_proxy(rsize, ksize=(17,17), sigma=1e2, k=1):
+def process_proxy(rsize, ksize=17, sigma=1e2, k=1):
     # process teeth proxies to get their landmarks and high-pass filters
     F, S = {}, {}
     for mode in ('upper', 'lower'):
@@ -33,7 +33,7 @@ def process_proxy(rsize, ksize=(17,17), sigma=1e2, k=1):
         
         # generate hgih-pass filter (only one channel)
         norm_txtr   = txtr.astype(np.float) / 255
-        smooth_txtr = cv2.GaussianBlur(txtr, ksize, sigma) / 255
+        smooth_txtr = cv2.GaussianBlur(txtr, (ksize, ksize), sigma) / 255
         filt   = (norm_txtr - smooth_txtr) * k + 0.5
         filt[filt < 0] = 0
         filt[filt > 1] = 1
@@ -49,8 +49,7 @@ def detect_region(inpI, inpS, rsize, padw, boundary, ksize=4):
     contour = contour[:, ::-1].astype(np.int)
     mask = np.zeros(inpI.shape[:2], dtype=np.uint8)
     mask = cv2.drawContours(mask, [contour], -1, 255, -1)
-    kernel = np.ones((ksize, ksize), dtype=np.uint8)
-    mask = cv2.erode(mask, kernel)
+    mask = cv2.erode(mask, np.ones((ksize, ksize), dtype=np.uint8))
 
     xs, ys = mask.nonzero()
     region = np.array([(y, x) for (x, y) in zip(xs, ys)])
@@ -98,13 +97,6 @@ def process_teeth(inpI, inpS, pxyF, pxyS, rsize, padw, boundary):
     # enhance lower region
     outpI = local_enhancement(tmpI, inpS, pxyF['lower'], pxyS['lower'], regionL, rsize, padw, boundary, 'lower')
     return outpI
-
-# def test1():
-#     # select upper or lower teeth proxy
-#     tar_path = 'target/target001.mp4'
-#     fr = 3261
-#     mode = 'upper'
-#     select_proxy(tar_path, mode, fr)
 
 if __name__ == '__main__':
     pass
