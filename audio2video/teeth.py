@@ -19,15 +19,17 @@ def select_proxy(tar_path, mode, fr):
         os.remove(f)
     cv2.imwrite('%s/proxy_%s_%04d.png' % (ref_dir, mode, fr), img)
 
-def process_proxy(rsize, ksize=17, sigma=1e2, k=1):
+def process_proxy(rsize, ksize=15, sigma=1e2, k=1, line=369):
     # process teeth proxies to get their landmarks and high-pass filters
     F, S = {}, {}
     for mode in ('upper', 'lower'):
         pxyfile, = glob.glob('%s/proxy_%s_*.png' % (ref_dir, mode))
         img = cv2.imread(pxyfile)
         det, ldmk = get_landmark(img, LandmarkIndex.LIP, norm=True)
-        
+
         # resize texture
+        if mode == 'upper': img[line:] = (0, 0, 0)
+        else: img[:line] = (0, 0, 0)
         txtr = img[det.top():det.top()+det.height(), det.left():det.left()+det.width()]
         txtr = cv2.resize(txtr, (rsize, rsize))
         
@@ -43,7 +45,7 @@ def process_proxy(rsize, ksize=17, sigma=1e2, k=1):
         S[mode] = ldmk
     return F, S
 
-def detect_region(inpI, inpS, rsize, padw, boundary, ksize=4):
+def detect_region(inpI, inpS, rsize, padw, boundary, ksize=2, alpha=0.5):
     ctr_idx = np.array(LandmarkIndex.CONTOUR_TEETH)-LandmarkIndex.LIP[0]
     contour = inpS[ctr_idx] * rsize + (padw - boundary[0], padw - boundary[2])
     contour = contour[:, ::-1].astype(np.int)
@@ -58,7 +60,7 @@ def detect_region(inpI, inpS, rsize, padw, boundary, ksize=4):
         upper_region, lower_region = np.array([]), np.array([])
     else:
         # divide region into upper and lower ones
-        axis = (np.max(region[:, 0]) + np.min(region[:, 0])) / 2
+        axis = np.max(region[:, 0])*alpha + np.min(region[:, 0])*(1-alpha)
         upper_region = region[region[:, 0] <= axis]
         lower_region = region[region[:, 0] >  axis]
 
@@ -92,10 +94,10 @@ def local_enhancement(inpI, inpS, pxyF, pxyS, region, rsize, padw, boundary, mod
 def process_teeth(inpI, inpS, pxyF, pxyS, rsize, padw, boundary):
     # detect upper and lower teeth region
     regionU, regionL = detect_region(inpI, inpS, rsize, padw, boundary)
-    # enhance upper region
-    tmpI = local_enhancement(inpI, inpS, pxyF['upper'], pxyS['upper'], regionU, rsize, padw, boundary, 'upper')
     # enhance lower region
-    outpI = local_enhancement(tmpI, inpS, pxyF['lower'], pxyS['lower'], regionL, rsize, padw, boundary, 'lower')
+    tmpI = local_enhancement(inpI, inpS, pxyF['lower'], pxyS['lower'], regionL, rsize, padw, boundary, 'lower')
+    # enhance upper region
+    outpI = local_enhancement(tmpI, inpS, pxyF['upper'], pxyS['upper'], regionU, rsize, padw, boundary, 'upper')
     return outpI
 
 if __name__ == '__main__':

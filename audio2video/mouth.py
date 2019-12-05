@@ -159,10 +159,32 @@ def lowerface(sq, ipath, tpath, tprocpath, opath, rsize=300, padw=100, preproc=F
         tmpI, tmpS = weighted_median(inpS, tgtS, tgtI)
         tmpI = process_teeth(tmpI, tmpS, pxyF, pxyS, rsize, padw, boundary)
         outpI = sharpen(tmpI)
+        # cv2.imshow('outpI', outpI)
+        # cv2.waitKey(0)
         outpdata.append(outpI)
     outpdata = np.array(outpdata)
     np.save(opath, outpdata)
     return outpdata
     
 if __name__ == '__main__':
-    pass
+    from __init__ import Square
+    ipath = '../input/ldmk/std_u/a015.npy'
+    tprocpath = '../target/preproc/t187.npz'
+    sq = Square(0.3, 0.7, 0.5, 1.1)
+    rsize, padw = 300, 100
+    # load target data and clip them
+    tgtdata = np.load(tprocpath)
+    tgtS, tgtI = tgtdata['landmarks'], tgtdata['textures']
+    boundary = sq.align(rsize, padw)      # (left, right, upper, lower)
+    tgtI = tgtI[:, boundary[2]:boundary[3], boundary[0]:boundary[1], :]  
+    # load input data and proxy data
+    inpdata = np.load(ipath)
+    nfr = inpdata.shape[0]
+    pxyF, pxyS = process_proxy(rsize)
+    
+    # create every frame and form a mp4
+    inpS = inpdata[750]
+    tmpI, tmpS = weighted_median(inpS, tgtS, tgtI)
+    tmpI2 = process_teeth(tmpI, tmpS, pxyF, pxyS, rsize, padw, boundary)
+    outpI = sharpen(tmpI2)
+    cv2.imwrite('../tmp/0750_2.png', outpI)
