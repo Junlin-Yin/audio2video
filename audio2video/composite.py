@@ -2,7 +2,7 @@
 
 import cv2
 from __init__ import Square
-from face import facefrontal, warp_mapping, get_landmark, LandmarkIndex
+from face import facefrontal, warp_mapping, get_landmark, LandmarkIndex, fronter
 from mouth import sharpen
 import numpy as np
 
@@ -32,7 +32,7 @@ def reconstruct(G, Lappyr):
         G += Lappyr[i]
     return G.astype(np.uint8)
 
-def pyramid_blend(img1, img2, mask_, layers=4):
+def pyramid_blend(img1, img2, mask_, layers=3):
     assert(img1.shape == img2.shape and img1.shape[:2] == mask_.shape)
     mask = mask_ / np.max(mask_)    # 0 ~ 1
     # construct Gaussian pyramids of input images
@@ -107,7 +107,7 @@ def recalc_pixel(pt, coords, pixels, thr=5, sigma=0.5):
     weights /= np.sum(weights)  # np.sum(weights) == 1
     return np.matmul(weights, pixels[indx, :])
 
-def warpback(face, tarfr, tarldmk, indices, projM, transM, scaleM, tmpshape, ksize=250):
+def warpback(face, tarfr, tarldmk, indices, projM, transM, scaleM, tmpshape, ksize=100):
     # get the pixels of given indices
     pixels = face[indices[:, 1], indices[:, 0], :]           # (N, 3)
     
@@ -144,7 +144,9 @@ def syn_frame(tarfr, syntxtr, sq, spadw):
     ftl_det, ftl_p2d = get_landmark(ftl_face, idx=LandmarkIndex.FULL, norm=False)
 
     # align lower-face to target frame
-    fpadw, fpadh, fdetw = ftl_det.left(), ftl_det.top(), ftl_det.width()
+    # fpadw, fpadh, fdetw = ftl_det.left(), ftl_det.top(), ftl_det.width()
+    fdet = fronter.det
+    fpadw, fpadh, fdetw = fdet.left(), fdet.top(), fdet.width()
     fWH = ftl_face.shape[0]
     syn_face = align2target(syntxtr, sq, spadw, fpadw, fpadh, fdetw, fWH)
 
@@ -164,7 +166,7 @@ def test1():
     start = time.time()
     outpfr = syn_frame(tarfr, syntxtr, sq, 100)
     print('duration: %.2f' % (time.time()-start))
-    cv2.imwrite('../tmp/1490o.png', outpfr)
+    cv2.imwrite('../tmp/0750o_50.png', outpfr)
 
 if __name__ == '__main__':
     test1()

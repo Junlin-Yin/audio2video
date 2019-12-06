@@ -82,12 +82,12 @@ def visual_retiming(L, tpath, orpath, rtpath):
         writer2.write(curfr)
     print('Done')
     
-def visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath):
+def visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath, debug):
     from composite import syn_frame
     syndata = np.load(ipath)
     cap = cv2.VideoCapture(tpath)
     writer = cv2.VideoWriter(tmppath, cv2.VideoWriter_fourcc(*'DIVX'), vfps, size)
-    nfr = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    nfr = 300 if debug else int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
     for i in range(nfr):
         print('%s: %04d/%04d' % (tmppath, i+1, nfr))

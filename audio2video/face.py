@@ -154,6 +154,7 @@ class frontalizer():
             self.refxy = ref['ref_XY']
             self.p3d = ref['p3d']
             self.refimg = ref['refimg']
+            self.det = dlib.rectangle(70, 57, 252, 239)
     def get_headpose(self,p2d):
         assert(len(p2d) == len(self.p3d))
         p3_ = np.reshape(self.p3d,(-1,3,1)).astype(np.float)

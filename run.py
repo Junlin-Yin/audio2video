@@ -82,14 +82,14 @@ def step3_retiming(inp_id, tar_id):
     print('Retiming frame-mapping saved at path %s' % opath)
     print('Retiming target videos saved at path %s and %s' % (orpath, rtpath))
 
-def step4_composite(inp_id, tar_id, sq, padw=100, rt=True):
+def step4_composite(inp_id, tar_id, sq, padw=100, retiming=True, debug=False):
     ipath       = '%s/a%st%s/lface.npy' % (outp_dir, inp_id, tar_id)
     mpath       = '%s/mp3/a%s.mp3' % (inp_dir, inp_id)
-    tpath       = '%s/a%st%s/tgt%s.mp4' % (outp_dir, inp_id, tar_id, 'rt' if rt else 'or')
+    tpath       = '%s/a%st%s/tgt%s.mp4' % (outp_dir, inp_id, tar_id, 'rt' if retiming else 'or')
     tmppath     = '%s/a%st%s/final.avi' % (outp_dir, inp_id, tar_id)
     vpath       = '%s/a%st%s/final.mp4' % (outp_dir, inp_id, tar_id)
         
-    visual.visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath)
+    visual.visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath, debug)
     print('Final video synthesized at path %s' % vpath)
 
 def clean_tmp(pass_id, inp_id, tar_id):
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     pass_id = "std_u"
     inp_id  = "015"
     tar_id  = "187"
-    sq = a2v.Square(0.3, 0.7, 0.5, 1.1)
+    sq = a2v.Square(0.25, 0.75, 0.5, 1.1)
     # step0_dataset()
     # step1_lipsyn(pass_id=pass_id, train=False, predict=True, inp_id=inp_id, outp_norm=False)
     # step2_lfacesyn(pass_id, inp_id, tar_id, sq)
