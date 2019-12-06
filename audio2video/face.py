@@ -21,6 +21,9 @@ import pickle as pkl
 from scipy import ndimage
 from __init__ import ref3dir
 
+face_lower = np.array([0, 90, 145])
+face_upper = np.array([40, 255, 255])
+
 class LandmarkIndex():
     CHEEK = list(range(0, 17))
     BROWL = list(range(17, 22))
@@ -151,8 +154,6 @@ class frontalizer():
             self.refxy = ref['ref_XY']
             self.p3d = ref['p3d']
             self.refimg = ref['refimg']
-            self.padw = 95
-            self.detw = 130
     def get_headpose(self,p2d):
         assert(len(p2d) == len(self.p3d))
         p3_ = np.reshape(self.p3d,(-1,3,1)).astype(np.float)
@@ -257,7 +258,7 @@ def facefrontal(img, detail=False, detector=None, predictor=None, mean=None):
     else:
         return newimg, det, p2d, projM, transM, scaleM, tmpshape
         
-def warp_mapping(indices, pixels, tmpshape, tmpldmk, projM, transM, ksize=10):
+def warp_mapping(indices, pixels, tmpfr, tmpldmk, projM, transM, ksize1=10, ksize2=50):
     # frontal points -> original resized points
     pt3d = fronter.refU[indices[:, 1], indices[:, 0], :]        # (N, 3)
     pt3d_homo = np.insert(pt3d, 3, [1]*pt3d.shape[0], axis=1)   # (N, 4)
@@ -273,23 +274,28 @@ def warp_mapping(indices, pixels, tmpshape, tmpldmk, projM, transM, ksize=10):
     # skip this part for the moment, and complete it if necessary
     
     # define the region in the original frame field to be recalculated
-    warp_mask = np.zeros(tmpshape[:2], dtype=np.uint8)
+    warp_mask = np.zeros(tmpfr.shape[:2], dtype=np.uint8)
     warp_mask[opt2d_grid[:, 1], opt2d_grid[:, 0]] = 255
-    kernel = np.ones((ksize, ksize), dtype=np.uint8)
-    warp_mask = cv2.morphologyEx(warp_mask, cv2.MORPH_CLOSE, kernel)
+    warp_mask = cv2.morphologyEx(warp_mask, cv2.MORPH_CLOSE, np.ones((ksize1, ksize1), dtype=np.uint8))
     
+    # p2d_mask: face contour mask based on landmark positions
     ctr_idx = LandmarkIndex.CONTOUR_FACE
-    face_contour = tmpldmk[ctr_idx, :].astype(np.int)
-    face_mask = np.zeros(tmpshape[:2], dtype=np.uint8)
-    face_mask = cv2.drawContours(face_mask, [face_contour], -1, 255, -1)
-    
+    p2d_contour = tmpldmk[ctr_idx, :].astype(np.int)
+    p2d_mask = np.zeros(tmpfr.shape[:2], dtype=np.uint8)
+    p2d_mask = cv2.drawContours(p2d_mask, [p2d_contour], -1, 255, -1)
+
+    # hsv_mask: face contour mask based on hsv bounds
+    hsv = cv2.cvtColor(tmpfr, cv2.COLOR_BGR2HSV)
+    hsv_mask = cv2.inRange(hsv, face_lower, face_upper)
+    hsv_mask = cv2.morphologyEx(hsv_mask, cv2.MORPH_CLOSE, np.ones((ksize2, ksize2), dtype=np.uint8))
+  
     # eliminate region that is out of face landmarks
+    face_mask = p2d_mask & hsv_mask
     warp_mask = warp_mask & face_mask
     ys, xs = warp_mask.nonzero()
     region = np.array([(x, y) for x, y in zip(xs, ys)])     # (N, 2)
     
     return warp_mask, face_mask, region, opt2d, pixels
-
 
 if __name__ == "__main__":
     pass

@@ -2,8 +2,7 @@
 
 import cv2
 from __init__ import Square
-from visual import vfps, size
-from face import facefrontal, warp_mapping, fronter, get_landmark, LandmarkIndex
+from face import facefrontal, warp_mapping, get_landmark, LandmarkIndex
 from mouth import sharpen
 import numpy as np
 
@@ -57,54 +56,48 @@ def pyramid_blend(img1, img2, mask_, layers=4):
     img = reconstruct(initG, BLappyr)
     return img
 
-def align2target(syntxtr, sq, spadw, fpadw=fronter.padw, fdetw=fronter.detw):
-    # align lower-face to target frame
-#   |padw| detw  |padw|
-#   |----|-------|---------
-#   |                 |fpadw
-#   |    ---------    -----
-#   |    |       |    |
-#   |    |       |    |fdetw
-#   |    |       |    |
-#   |    ---------    -----
-#   |     ftl_face    |fpadw
-#   -----------------------
+def align2target(syntxtr, sq, spadw, fpadw, fpadh, fdetw, fWH):
+    # align syn_face to ftl_face
+#   |fpadw| fdetw |     |               |spadw| sdetw |     |
+#   |-----|-------|----------           |-----|-------|----------
+#   |                   |fpadh          |                   |spadh
+#   |     ---------     ------          |     ---------     ------
+#   |     |       |     |               |     |       |     |
+#   |     |       |     |fdetw          |     |       |     |sdetw
+#   |     |       |     |               |     |       |     |
+#   |     ---------     -----           |     ---------     -----
+#   |     ftl_face      |               |     syn_face      |
+#   -----------------------             -----------------------
+
     sdetw = sq.getrsize(syntxtr.shape)
-    sW = sdetw + 2*spadw
-    syn_face_ = np.zeros((sW, sW, syntxtr.shape[2]), dtype=np.uint8)
+    sWH = sdetw + 2*spadw
+    syn_face_ = np.zeros((sWH, sWH, syntxtr.shape[2]), dtype=np.uint8)
     left, right, upper, lower = sq.align(sdetw, spadw)
     syn_face_[upper:lower, left:right, :] = syntxtr
     
     ratio = fdetw / sdetw
-    syn_face_ = cv2.resize(syn_face_, (int(sW*ratio), int(sW*ratio)))
-    spadw = int(sW*ratio - fdetw) // 2
+    syn_face_ = cv2.resize(syn_face_, (round(sWH*ratio), round(sWH*ratio)))
     
-    if fpadw < spadw:
-        syn_face = syn_face_[spadw-fpadw:spadw+fdetw+fpadw, spadw-fpadw:spadw+fdetw+fpadw, :]
-    else:
-        fW = 2*fpadw + fdetw
-        syn_face = np.zeros((fW, fW, syntxtr.shape[2]), dtype=np.uint8)
-        syn_face[fpadw-spadw:fpadw+fdetw+spadw, fpadw-spadw:fpadw+fdetw+spadw, :] = syn_face_
+    sWH = round(sWH*ratio)
+    spadw = (sWH - fdetw) // 2
+    
+    syn_face = np.zeros((max(fpadh+sWH, spadw+fWH), max(fpadw+sWH, spadw+fWH), 3), dtype=np.uint8)
+    syn_face[fpadh:fpadh+sWH, fpadw:fpadw+sWH] = syn_face_
+    syn_face = syn_face[spadw:spadw+fWH, spadw:spadw+fWH]
     
     return syn_face
 
-def jaw_adjust(syn_face, tarfr, det, p2d):
-    return syn_face
-
-def getindices(ftl_face, sq, fpadw=fronter.padw, fdetw=fronter.detw):
+def getindices(ftl_face, sq, fpadw, fpadh, fdetw, fWH, fp2d):
     # get mask region using boundary, chin landmarks and nose landmarks
     # boundary region: left -> right, upper -> lower
-    WH = ftl_face.shape[0]
-    boundary = sq.align(fdetw, fpadw)
-    left, right, upper, lower = np.array(boundary)
+    left, right, upper, lower = sq.alignh(fdetw, fpadw, fpadh)
     indices = np.array([(x, y) for x in range(left, right) for y in range(upper, lower)])
     
     # get landmarks of frontalized face
-    _, ldmk = get_landmark(ftl_face, LandmarkIndex.FULL, norm=False)
-    chin_xp, chin_fp = ldmk[ 3:14, 0], ldmk[ 3:14, 1]
-    chin_line = np.interp(np.arange(WH), chin_xp, chin_fp)
+    chin_xp, chin_fp = fp2d[ 3:14, 0], fp2d[ 3:14, 1]
+    chin_line = np.interp(np.arange(fWH), chin_xp, chin_fp)
 
-    # filter the position which is out of chin line and nose line    
+    # filter the position which is out of chin line  
     return indices[indices[:, 1] < chin_line[indices[:, 0]]]
 
 def recalc_pixel(pt, coords, pixels, thr=5, sigma=0.5):
@@ -114,57 +107,64 @@ def recalc_pixel(pt, coords, pixels, thr=5, sigma=0.5):
     weights /= np.sum(weights)  # np.sum(weights) == 1
     return np.matmul(weights, pixels[indx, :])
 
-def warpback(face, tarfr, tarldmk, indices, projM, transM, scaleM, tmpshape):
+def warpback(face, tarfr, tarldmk, indices, projM, transM, scaleM, tmpshape, ksize=250):
     # get the pixels of given indices
     pixels = face[indices[:, 1], indices[:, 0], :]           # (N, 3)
     
     # get the to-be-recalculated region in the original frame
     ratio = scaleM[0, 0]
     tmpldmk = tarldmk * ratio
-    warp_mask, env_mask, region, coords, pixels = warp_mapping(indices, pixels, tmpshape, tmpldmk, projM, transM)
-    
+    tmpfr = cv2.resize(tarfr, (tmpshape[1], tmpshape[0]))
+    warp_mask, env_mask, region, coords, pixels = warp_mapping(indices, pixels, tmpfr, tmpldmk, projM, transM)
+
     # do recalculation for every pixel in the region
     lfacefr = np.zeros(tmpshape, dtype=np.uint8)
     for pt in region:
         lfacefr[pt[1], pt[0], :] = recalc_pixel(pt, coords, pixels)
-    
+
     # seperate upper face from the environment
-    tarfr = cv2.resize(tarfr, (tmpshape[1], tmpshape[0]))
-    envfr, ufacefr = tarfr & (~env_mask[:, :, np.newaxis]), tarfr & env_mask[:, :, np.newaxis]
+    envfr, ufacefr = tmpfr & (~env_mask[:, :, np.newaxis]), tmpfr & env_mask[:, :, np.newaxis]
     
     # blend lower and upper face
-    ufacefr = cv2.inpaint(ufacefr, ~env_mask, 10, cv2.INPAINT_TELEA)
-    lfacefr = cv2.inpaint(lfacefr, ~warp_mask, 10, cv2.INPAINT_TELEA) 
+    inp_mask = cv2.dilate(env_mask, np.ones((ksize, ksize), dtype=np.uint8)) - env_mask
+    ufacefr = cv2.inpaint(ufacefr, inp_mask, 10, cv2.INPAINT_TELEA)
+    inp_mask = cv2.dilate(warp_mask, np.ones((ksize, ksize), dtype=np.uint8)) - warp_mask
+    lfacefr = cv2.inpaint(lfacefr, inp_mask, 10, cv2.INPAINT_TELEA) 
+
     lfacefr = sharpen(lfacefr)   
     facefr  = pyramid_blend(lfacefr, ufacefr, warp_mask)
-    
+
     # combine face and environment
-    finalfr = (facefr & env_mask[:, :, np.newaxis]) + (envfr & (~env_mask[:, :, np.newaxis]))
-    
+    finalfr = (facefr & env_mask[:, :, np.newaxis]) + (envfr & (~env_mask[:, :, np.newaxis]))  
     return finalfr
 
-def syn_frame(tarfr, syntxtr, sq, padw):
+def syn_frame(tarfr, syntxtr, sq, spadw):
     # frontalize the target frame
     ftl_face, det, ldmk, projM, transM, scaleM, tmpshape = facefrontal(tarfr, detail=True)
-    
-    # align lower-face to target frame
-    syn_face = align2target(syntxtr, sq, padw)
+    ftl_det, ftl_p2d = get_landmark(ftl_face, idx=LandmarkIndex.FULL, norm=False)
 
-    # jaw-correction
-    syn_face = jaw_adjust(syn_face, tarfr, det, ldmk)
+    # align lower-face to target frame
+    fpadw, fpadh, fdetw = ftl_det.left(), ftl_det.top(), ftl_det.width()
+    fWH = ftl_face.shape[0]
+    syn_face = align2target(syntxtr, sq, spadw, fpadw, fpadh, fdetw, fWH)
+
+    # jaw-correction (omitted here)
    
     # get indices of pixels in ftl_face which needs to be blended into target frame
-    indices = getindices(ftl_face, sq)
+    indices = getindices(ftl_face, sq, fpadw, fpadh, fdetw, fWH, ftl_p2d)
     
     # warp the synthesized face to the original pose and blending
     return warpback(syn_face, tarfr, ldmk, indices, projM, transM, scaleM, tmpshape)
    
 def test1():
-    syntxtr = cv2.imread('../tmp/s1490.png')
-    tarfr = cv2.imread('../tmp/t1490.png')
-    sq = Square(0.2, 0.8, 0.4, 1.15)
+    import time
+    syntxtr = cv2.imread('../tmp/0750s.png')
+    tarfr = cv2.imread('../tmp/0750t.png')
+    sq = Square(0.3, 0.7, 0.5, 1.1)
+    start = time.time()
     outpfr = syn_frame(tarfr, syntxtr, sq, 100)
-    cv2.imwrite('../tmp/o1490.png', outpfr)
+    print('duration: %.2f' % (time.time()-start))
+    cv2.imwrite('../tmp/1490o.png', outpfr)
 
 if __name__ == '__main__':
     test1()

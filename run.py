@@ -43,10 +43,10 @@ def step1_lipsyn(pass_id, train, predict, inp_id, outp_norm=False, preprocess=Fa
     args['outp_norm']  = outp_norm
 
     apath   = '%s/mfcc/a%s.npy' % (inp_dir, inp_id)               # audio mfcc
-    mpath   = '%s/mp3/a%s.mp3'  % (inp_dir, inp_id)               # music mp3
-    opath   = '%s/ldmk/%s/a%s.npy' % (inp_dir, pass_id, inp_id)   # output npy data
-    tmppath = '%s/visual/%s/a%s.avi' % (inp_dir, pass_id, inp_id) # temporary visualized mp4
-    vpath   = '%s/visual/%s/a%s.mp4' % (inp_dir, pass_id, inp_id) # final visualization
+    mpath   = '%s/mp3/a%s.mp3'  % (inp_dir, inp_id)                 # music mp3
+    opath   = '%s/ldmk/%s/a%s.npy' % (inp_dir, pass_id, inp_id)     # output npy data
+    tmppath = '%s/vis/%s/a%s.avi' % (inp_dir, pass_id, inp_id)      # temporary visualized mp4
+    vpath   = '%s/vis/%s/a%s.mp4' % (inp_dir, pass_id, inp_id)      # final visualization
 
     a2v_cvter = lipnn.Audio2Video(args=args)
     if train:
@@ -94,7 +94,7 @@ def step4_composite(inp_id, tar_id, sq, padw=100, rt=True):
 
 def clean_tmp(pass_id, inp_id, tar_id):
     import os, glob
-    f1 = glob.glob('%s/visual/%s/*.avi' % (inp_dir, pass_id))
+    f1 = glob.glob('%s/vis/%s/*.avi' % (inp_dir, pass_id))
     f2 = glob.glob('%s/a%st%s/*.avi' % (outp_dir, inp_id, tar_id))
     for f in (f1 + f2):
         if os.path.exists(f):

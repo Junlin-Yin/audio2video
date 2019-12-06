@@ -27,12 +27,21 @@ class Square:
         self.up = u
         self.down = d
         
-    def align(self, S, padw):
+    def align(self, S, padw, margin=False):
         left  = round(self.left  * S + padw)
         right = round(self.right * S + padw)
         upper = round(self.up    * S + padw)
         lower = round(self.down  * S + padw)
-        return left, right, upper, lower
+        if margin == False: return left, right, upper, lower
+        else: return left+1, right-1, upper+1, lower-1
+
+    def alignh(self, S, padw, padh, margin=True):
+        left  = round(self.left  * S + padw)
+        right = round(self.right * S + padw)
+        upper = round(self.up    * S + padh)
+        lower = round(self.down  * S + padh)
+        if margin == False: return left, right, upper, lower
+        else: return left+1, right-1, upper+1, lower-1
 
     def getrsize(self, sp):
         rs1 = sp[1] / (self.right - self.left)

@@ -11,9 +11,9 @@ import cv2
 
 vfps = 30
 size  = (1280, 720)
-final_WH = (662, 373)
+final_WH = (960, 539)
 rsize = 300
-start = (440, 160)
+start = (160, 90)
 
 def combine_vm(tpath, mpath, vpath):
     command = 'ffmpeg -i %s -i %s -c:v copy -c:a aac -strict experimental %s' % (tpath, mpath, vpath)
@@ -88,7 +88,6 @@ def visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath):
     cap = cv2.VideoCapture(tpath)
     writer = cv2.VideoWriter(tmppath, cv2.VideoWriter_fourcc(*'DIVX'), vfps, size)
     nfr = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-#    nfr = 300
     
     for i in range(nfr):
         print('%s: %04d/%04d' % (tmppath, i+1, nfr))
@@ -97,11 +96,14 @@ def visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath):
         
         syntxtr = syndata[i] if i < syndata.shape[0] else syndata[-1]
         frame_ = syn_frame(tarfr, syntxtr, sq, padw)
+
         frame_ = cv2.resize(frame_, final_WH)
         frame = np.zeros((size[1], size[0], 3), dtype=np.uint8)
         left, upper = start
         frame[upper:upper+frame_.shape[0], left:left+frame_.shape[1], :] = frame_
+
         writer.write(frame)
+
     combine_vm(tmppath, mpath, vpath)
     return vpath
     
