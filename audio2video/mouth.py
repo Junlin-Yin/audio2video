@@ -138,6 +138,7 @@ def sharpen(inpI, ksize=15, sigma=1.0, k=0.5):
 
 def lowerface(sq, ipath, tpath, tprocpath, opath, rsize=300, padw=100, preproc=False):
     # preprocess target video
+    tar_id = os.path.splitext(os.path.split(tpath)[1])[0]
     if preproc or os.path.exists(tprocpath) == False:
         preprocess(tpath, tprocpath, rsize, padw)
     
@@ -149,7 +150,7 @@ def lowerface(sq, ipath, tpath, tprocpath, opath, rsize=300, padw=100, preproc=F
     # load input data and proxy data
     inpdata = np.load(ipath)
     nfr = inpdata.shape[0]
-    pxyF, pxyS = process_proxy(rsize)
+    pxyF, pxyS = process_proxy(tar_id, rsize)
     
     # create every frame and form a mp4
     outpdata = []

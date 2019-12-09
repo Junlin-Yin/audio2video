@@ -5,25 +5,13 @@ import cv2
 import glob
 import numpy as np
 from face import get_landmark, LandmarkIndex
-from __init__ import ref_dir
+from __init__ import tar_dir
 
-def select_proxy(tar_path, mode, fr):  
-    # select and generate teeth proxy frame(s)
-    assert(mode == 'upper' or mode == 'lower')
-    cap = cv2.VideoCapture(tar_path)
-    # get face and landmarks
-    cap.set(cv2.CAP_PROP_POS_FRAMES, fr)
-    ret, img = cap.read()
-    pxyfile = glob.glob('%s/proxy_%s_*.png' % (ref_dir, mode))
-    for f in pxyfile:
-        os.remove(f)
-    cv2.imwrite('%s/proxy_%s_%04d.png' % (ref_dir, mode, fr), img)
-
-def process_proxy(rsize, ksize=15, sigma=1e2, k=1, line=369):
+def process_proxy(tar_id, rsize, ksize=15, sigma=1e2, k=1, line=369):
     # process teeth proxies to get their landmarks and high-pass filters
     F, S = {}, {}
     for mode in ('upper', 'lower'):
-        pxyfile, = glob.glob('%s/proxy_%s_*.png' % (ref_dir, mode))
+        pxyfile, = glob.glob('%s/proxy/%s_%s*.png' % (tar_dir, tar_id, mode))
         img = cv2.imread(pxyfile)
         det, ldmk = get_landmark(img, LandmarkIndex.LIP, norm=True)
 
