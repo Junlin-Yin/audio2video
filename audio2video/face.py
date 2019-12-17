@@ -19,7 +19,7 @@ import numpy as np
 import cv2, dlib
 import pickle as pkl
 from scipy import ndimage
-from __init__ import ref3dir
+from __init__ import ref3dir, detector as detector_default, predictor as predictor_default
 
 face_lower = np.array([0, 90, 145])
 face_upper = np.array([40, 255, 255])
@@ -42,13 +42,110 @@ class LandmarkIndex():
     FULL  = FACE  + NOSE + EYES + LIP
     CONTOUR_FACE  = CHEEK + BROWS[::-1]
     CONTOUR_TEETH = LIPI
+    FRONTAL = BROWS + EYES + NOSE
+
+class PointState:
+    m_deltaTime = 1.0
+    m_accelNoiseMag = 0.005
+
+    def __init__(self, point):
+        self.m_point = point
+        self.m_velocity = 0
+        self.m_kalman = cv2.KalmanFilter(4, 2, 0, cv2.CV_64F)
+        # initialize kalman filter parameters
+        self.m_kalman.transitionMatrix = np.array([
+            [1, 0, self.m_deltaTime, 0],
+            [0, 1, 0, self.m_deltaTime],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ], np.float64)
+        self.m_kalman.statePre  = np.array([point[0], point[1], 0, 0])  # x, y, vx, vy
+        self.m_kalman.statePost = np.array(point)
+        self.m_kalman.measurementMatrix = np.array([
+            [1, 0, 0, 0],
+            [0, 1, 0, 0]
+        ], np.float64)
+        self.m_kalman.processNoiseCov = np.array([
+            [self.m_deltaTime**4 / 4, 0, self.m_deltaTime**3 / 2, 0],
+            [0, self.m_deltaTime**4 / 4, 0, self.m_deltaTime**3 / 2],
+            [self.m_deltaTime**3 / 2, 0, self.m_deltaTime**2 / 1, 0],
+            [0, self.m_deltaTime**3 / 2, 0, self.m_deltaTime**2 / 1]
+        ])
+        self.m_kalman.processNoiseCov *= self.m_accelNoiseMag
+        cv2.setIdentity(self.m_kalman.measurementNoiseCov, 0.5)
+        cv2.setIdentity(self.m_kalman.errorCovPost, 0.1)
+
+    def update(self, point):
+        measurement = np.copy(point).astype(np.float64)
+        self.m_kalman.correct(measurement)
+        prediction = self.m_kalman.predict()
+        self.m_point = prediction[:2]
+        self.m_velocity = np.linalg.norm(prediction[2:], ord=2)
+
+class LandmarkFetcher:
+    def __init__(self, detector=None, predictor=None):
+        self.prevGray = None
+        self.trackPoints = None
+        self.detector = detector_default if detector is None else detector
+        self.detector_alt = dlib.get_frontal_face_detector()
+        self.predictor = predictor_default if predictor is None else predictor
+    
+    def clear(self):
+        self.prevGray = None
+        self.trackPoints = None
+
+    def get_landmark(self, currFrame, idx, norm, mean=None, minWH=150, debug=False):
+        # generate all possible bboxes
+        self.currGray = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
+        dets = self.detector.detectMultiScale(self.currGray, minSize=(minWH, minWH)) 
+        if len(dets) == 0:
+            print('[Warning] Using alternative cascade classifier (face.py)...')
+            dets = self.detector_alt(currFrame, 1)
+            dets = [(det.left(), det.top(), det.width(), det.height()) for det in dets]
+            if len(dets) == 0:
+                return None, None
+        if debug: print(dets)
+
+        # select the optimal bbox
+        def getkey(det):
+            pt1 = np.array([det[0], det[1], det[2]])
+            pt2 = np.array(mean)
+            return np.linalg.norm(pt1-pt2, ord=2)
+        if mean is None:
+            dets = sorted(dets, key=lambda x: x[2], reverse=True)
+        else:
+            dets = sorted(dets, key=getkey, reverse=False)
+        x, y, w, h = dets[0]
+
+        # generate landmark coordinates
+        det = dlib.rectangle(x, y, x+w, y+h)
+        shape = self.predictor(currFrame, det)
+        landmarks = np.asarray([(shape.part(n).x, shape.part(n).y) for n in range(shape.num_parts)], np.float32)
+        
+        # anti-jitter using optical-flow and kalman filter
+        if self.prevGray is None or self.trackPoints is None:
+            self.trackPoints = [PointState(pt) for pt in landmarks]
+        else:
+            for i in range(landmarks.shape[0]):
+                self.trackPoints[i].update(landmarks[i])
+        new_landmarks = np.array([ps.m_point for ps in self.trackPoints])
+        velocities = np.array([ps.m_velocity for ps in self.trackPoints])
+        alphas = 1 / 3**velocities[:, np.newaxis]
+        alphas[alphas>0.7] == 1
+        landmarks = landmarks*(1-alphas) + new_landmarks*alphas
+        self.prevGray = self.currGray
+
+        # normalization
+        if norm:
+            origin = np.array([det.left(), det.top()])
+            size = np.array([det.width(), det.height()])
+            landmarks = (landmarks - origin) / size         # restrained in [0, 0] ~ [1, 1]
+        return det, landmarks[idx]
 
 def get_landmark(img, idx, norm, detector=None, predictor=None, mean=None, debug=False):
-    if detector is None:
-        from __init__ import detector
-    if predictor is None:
-        from __init__ import predictor
-
+    detector = detector_default if detector is None else detector
+    predictor = predictor_default if predictor is None else predictor
+    
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     dets = detector.detectMultiScale(gray, minSize=(150, 150))
     if len(dets) == 0:
@@ -71,9 +168,9 @@ def get_landmark(img, idx, norm, detector=None, predictor=None, mean=None, debug
     x, y, w, h = dets[0]
 
     det = dlib.rectangle(x, y, x+w, y+h)
-    shape = predictor(gray, det)
+    shape = predictor(img, det)
     landmarks = np.asarray([(shape.part(n).x, shape.part(n).y) for n in range(shape.num_parts)], np.float32)
-    
+
     if norm:
         origin = np.array([det.left(), det.top()])
         size = np.array([det.width(), det.height()])
@@ -114,7 +211,7 @@ def plot3d(p3ds):
     plt.ylabel('y')
     plt.show()
     
-def resize(img, det, p2d, detw=200, padw=60):
+def resize(img, det, p2d, detw=182, padw=70, padh=57, WH=320):
     # detw and imgw are both determined by the template model.
     # assume that det.width() ~ det.height()
     left, top = det.left(), det.top()
@@ -124,23 +221,35 @@ def resize(img, det, p2d, detw=200, padw=60):
     
     curdetw = (det.width() + det.height()) / 2
     ratio = detw / curdetw
-    # imgw == 320 (default for face_frontal)
     
     img_2 = cv2.resize(img_, (round(W*ratio), round(H*ratio)))
     H, W, C = img_2.shape
-    img_ = np.zeros((H+2*padw, W+2*padw, C), dtype=np.uint8)
-    img_[padw:-padw, padw:-padw, :] = img_2
+    img_ = np.zeros((H+WH-padh, W+WH-padw, C), dtype=np.uint8)
+    img_[padh:padh+H, padw:padw+W, :] = img_2
     
-    p2d_ = p2d_ * ratio + padw
+    p2d_ = p2d_ * ratio + (padw, padh)
     left = round(left * ratio + padw)
-    top  = round(top  * ratio + padw)
+    top  = round(top  * ratio + padh)
     
-    img_ = img_[top-padw:top+detw+padw, left-padw:left+detw+padw, :]
-    p2d_ -= (left-padw, top-padw)
-    transM = np.array([[1, 0, 0], [0, 1, 0], [2*padw-left, 2*padw-top, 1]])
+    img_ = img_[top-padh:top-padh+WH, left-padw:left-padw+WH, :]
+    p2d_ -= (left-padw, top-padh)
+    transM = np.array([[1, 0, 0], [0, 1, 0], [2*padw-left, 2*padh-top, 1]])
     scaleM = np.array([[ratio, 0, 0], [0, ratio, 0], [0, 0, 1]])
     
     return img_, p2d_, transM, scaleM, img_2.shape
+
+def get_projM(p3d, p2d, intrM):
+    # p3_ = np.reshape(p3d, (-1, 3, 1)).astype(np.float)
+    # p2_ = np.reshape(p2d, (-1, 2, 1)).astype(np.float)
+    p3_ = np.reshape(p3d[LandmarkIndex.FRONTAL],(-1,3,1)).astype(np.float)
+    p2_ = np.reshape(p2d[LandmarkIndex.FRONTAL],(-1,2,1)).astype(np.float)
+    distCoeffs = np.zeros((5, 1))    # distortion coefficients
+    succ,rvec,tvec = cv2.solvePnP(p3_, p2_, intrM, distCoeffs)
+
+    if not succ: return None
+    matx = cv2.Rodrigues(rvec)      # matx[0] := R matrix
+    ProjM = intrM.dot(np.insert(matx[0], 3, tvec.T, axis=1))     # intrinsic * extrinsic
+    return ProjM
 
 class frontalizer():
     def __init__(self,refname):
@@ -157,20 +266,8 @@ class frontalizer():
             self.det = dlib.rectangle(70, 57, 252, 239)
     def get_headpose(self,p2d):
         assert(len(p2d) == len(self.p3d))
-        p3_ = np.reshape(self.p3d,(-1,3,1)).astype(np.float)
-        p2_ = np.reshape(p2d,(-1,2,1)).astype(np.float)
-        # print(self.A)                 # camera intrinsic matrix
-        distCoeffs = np.zeros((5,1))    # distortion coefficients
-        succ,rvec,tvec = cv2.solvePnP(p3_,p2_, self.A, distCoeffs)
-        # rvec.shape = (3, 1) which is a compact way to represent a rotation
-        # tvec.shape = (3, 1) which is used to represent a transformation
-        if not succ:
-            print('There is something wrong, please check.')
-            return None
-        else:
-            matx = cv2.Rodrigues(rvec)      # matx[0] := R matrix
-            ProjM_ = self.A.dot(np.insert(matx[0],3,tvec.T,axis=1))     # intrinsic * extrinsic
-            return rvec,tvec,ProjM_
+        ProjM_ = get_projM(self.p3d, p2d, self.A)
+        return ProjM_
         
     def frontalization(self, img_, facebb, p2d_):
         #we rescale the face region (twice as big as the detected face) before applying frontalisation
@@ -182,7 +279,7 @@ class frontalizer():
         # plot3d(tem3d)
         # print tem3d.shape 
         ref3dface = np.insert(tem3d, 3, np.ones(len(tem3d)),axis=1).T   # homogeneous coordinates
-        _, _, ProjM = self.get_headpose(p2d)
+        ProjM = self.get_headpose(p2d)
         proj3d = ProjM.dot(ref3dface)
         proj3d[0] /= proj3d[2]      # homogeneous normalization
         proj3d[1] /= proj3d[2]      # homogeneous normalization
@@ -242,22 +339,19 @@ class frontalizer():
 fronter  = frontalizer(ref3dir)
 
 
-def facefrontal(img, detail=False, detector=None, predictor=None, mean=None):
+def facefrontal(img, det, p2d, detail=False):
     '''
     ### parameters
     img: original image to be frontalized \\
     ### retval
     newimg: (320, 320, 3), frontalized image
     '''
-    det, p2d = get_landmark(img, LandmarkIndex.FULL, False, detector, predictor, mean)
-    if det is None or p2d is None:
-        return None
     rawfront, symfront, projM, transM, scaleM, tmpshape = fronter.frontalization(img, det, p2d)
     newimg = symfront.astype('uint8')
     if detail == False:
         return newimg
     else:
-        return newimg, det, p2d, projM, transM, scaleM, tmpshape
+        return newimg, projM, transM, scaleM, tmpshape
         
 def warp_mapping(indices, pixels, tmpfr, tmpldmk, projM, transM, ksize1=10, ksize2=50):
     # frontal points -> original resized points

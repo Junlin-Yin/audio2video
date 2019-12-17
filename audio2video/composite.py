@@ -2,7 +2,7 @@
 
 import cv2
 from __init__ import Square
-from face import facefrontal, warp_mapping, get_landmark, LandmarkIndex, fronter
+from face import facefrontal, warp_mapping, get_landmark, LandmarkIndex as LI, fronter, LandmarkFetcher, get_projM, resize
 from mouth import sharpen
 import numpy as np
 
@@ -138,10 +138,18 @@ def warpback(face, tarfr, tarldmk, indices, projM, transM, scaleM, tmpshape, ksi
     finalfr = (facefr & env_mask[:, :, np.newaxis]) + (envfr & (~env_mask[:, :, np.newaxis]))  
     return finalfr
 
-def syn_frame(tarfr, syntxtr, sq, spadw):
+def syn_frame(tarfr, syntxtr, LF1, LF2, sq, spadw):
     # frontalize the target frame
-    ftl_face, det, ldmk, projM, transM, scaleM, tmpshape = facefrontal(tarfr, detail=True)
-    ftl_det, ftl_p2d = get_landmark(ftl_face, idx=LandmarkIndex.FULL, norm=False)
+    det, p2d = LF1.get_landmark(tarfr, LI.FULL, False)
+    ftl_face, projM, transM, scaleM, tmpshape = facefrontal(tarfr, det, p2d, detail=True)
+    ftl_det, ftl_p2d = LF2.get_landmark(ftl_face, idx=LI.FULL, norm=False)
+
+    ###################### FTL_P3D <-> RSZ_P2D ###########################
+    # _, rs_p2d, transM, scaleM, tmpshape = resize(tarfr, det, p2d)
+    # ftl_p2di = ftl_p2d.astype(np.int)
+    # ftl_p3d = fronter.refU[ftl_p2di[:, 1], ftl_p2di[:, 0], :]
+    # projM = get_projM(ftl_p3d, rs_p2d, fronter.A)
+    ############################### END ##################################
 
     # align lower-face to target frame
     # fpadw, fpadh, fdetw = ftl_det.left(), ftl_det.top(), ftl_det.width()
@@ -156,7 +164,7 @@ def syn_frame(tarfr, syntxtr, sq, spadw):
     indices = getindices(ftl_face, sq, fpadw, fpadh, fdetw, fWH, ftl_p2d)
     
     # warp the synthesized face to the original pose and blending
-    return warpback(syn_face, tarfr, ldmk, indices, projM, transM, scaleM, tmpshape)
+    return warpback(syn_face, tarfr, p2d, indices, projM, transM, scaleM, tmpshape)
    
 def test1():
     import time

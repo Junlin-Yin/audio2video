@@ -89,19 +89,22 @@ def visual_retiming(L, tpath, orpath, rtpath):
     print('Done')
     
 def visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath, debug):
+    from face import LandmarkFetcher
     from composite import syn_frame
     syndata = np.load(ipath)
     cap = cv2.VideoCapture(tpath)
     writer = cv2.VideoWriter(tmppath, cv2.VideoWriter_fourcc(*'DIVX'), vfps, size)
     nfr = 300 if debug else int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    
+    LF1 = LandmarkFetcher()
+    LF2 = LandmarkFetcher()
+
     for i in range(nfr):
         print('%s: %04d/%04d' % (tmppath, i+1, nfr))
         ret, tarfr = cap.read()
         assert(ret)
         
         syntxtr = syndata[i] if i < syndata.shape[0] else syndata[-1]
-        frame_ = syn_frame(tarfr, syntxtr, sq, padw)
+        frame_ = syn_frame(tarfr, syntxtr, LF1, LF2, sq, padw)
 
         frame_ = cv2.resize(frame_, final_WH)
         frame = np.zeros((size[1], size[0], 3), dtype=np.uint8)
