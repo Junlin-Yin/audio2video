@@ -107,8 +107,8 @@ def load_data(pass_id, args, preprocess=False, outp_norm=False):
         os.mkdir('%s/%s' % (trn_dir, pass_id))
     if os.path.exists('%s/ldmk/%s' % (inp_dir, pass_id)) == False:
         os.mkdir('%s/ldmk/%s' % (inp_dir, pass_id))
-    if os.path.exists('%s/vis/%s' % (inp_dir, pass_id)) == False:
-        os.mkdir('%s/vis/%s' % (inp_dir, pass_id))
+    if os.path.exists('%s/visual/%s' % (inp_dir, pass_id)) == False:
+        os.mkdir('%s/visual/%s' % (inp_dir, pass_id))
 
     dpath = '%s/%s/data.pkl' % (trn_dir, pass_id)
     if preprocess or os.path.exists(dpath) == False:

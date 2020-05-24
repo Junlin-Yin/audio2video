@@ -8,6 +8,7 @@ Created on Wed Oct  9 10:28:05 2019
 from subprocess import call
 import numpy as np
 import cv2
+import os
 
 vfps = 30
 size  = (1280, 720)
@@ -18,6 +19,7 @@ start = (160, 90)
 def combine_vm(tpath, mpath, vpath):
     command = 'ffmpeg -i %s -i %s -c:v copy -c:a aac -strict experimental %s' % (tpath, mpath, vpath)
     call(command)
+    os.remove(tpath)
 
 def visual_lipsyn(ldmks, mpath, vpath, tmppath):   
     writer = cv2.VideoWriter(tmppath, cv2.VideoWriter_fourcc(*'DIVX'), vfps, size)
@@ -28,6 +30,7 @@ def visual_lipsyn(ldmks, mpath, vpath, tmppath):
             show_pt = show_pt.astype(np.int)
             frame = cv2.circle(frame, tuple(show_pt), 3, (255, 255, 255), -1)
         writer.write(frame)
+    writer.release()
     combine_vm(tmppath, mpath, vpath)
 
 def visual_lfacesyn(txtrs, mpath, vpath, tmppath):
@@ -38,6 +41,7 @@ def visual_lfacesyn(txtrs, mpath, vpath, tmppath):
         left, upper = start
         frame[upper:upper+H, left:left+W, :] = img
         writer.write(frame)
+    writer.release()
     combine_vm(tmppath, mpath, vpath)
     
 def visual_retiming(L, tpath, orpath, rtpath):
@@ -70,6 +74,7 @@ def visual_retiming(L, tpath, orpath, rtpath):
         prefr = curfr
 
     writer1.write(prefr)
+    writer1.release()
     print('Done')
     
     print('Start forming new NON-retimed target video...')
@@ -80,22 +85,26 @@ def visual_retiming(L, tpath, orpath, rtpath):
         ret, curfr = cap.read()
         assert(ret)
         writer2.write(curfr)
+    writer2.release()
     print('Done')
     
 def visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath, debug):
+    from face import LandmarkFetcher
     from composite import syn_frame
     syndata = np.load(ipath)
     cap = cv2.VideoCapture(tpath)
     writer = cv2.VideoWriter(tmppath, cv2.VideoWriter_fourcc(*'DIVX'), vfps, size)
     nfr = 300 if debug else int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    
+    LF1 = LandmarkFetcher()
+    LF2 = LandmarkFetcher()
+
     for i in range(nfr):
         print('%s: %04d/%04d' % (tmppath, i+1, nfr))
         ret, tarfr = cap.read()
         assert(ret)
         
         syntxtr = syndata[i] if i < syndata.shape[0] else syndata[-1]
-        frame_ = syn_frame(tarfr, syntxtr, sq, padw)
+        frame_ = syn_frame(tarfr, syntxtr, LF1, LF2, sq, padw)
 
         frame_ = cv2.resize(frame_, final_WH)
         frame = np.zeros((size[1], size[0], 3), dtype=np.uint8)
@@ -104,6 +113,7 @@ def visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath, debug):
 
         writer.write(frame)
 
+    writer.release()
     combine_vm(tmppath, mpath, vpath)
     return vpath
     

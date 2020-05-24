@@ -2,7 +2,7 @@
 
 import cv2
 from __init__ import Square
-from face import facefrontal, warp_mapping, get_landmark, LandmarkIndex, fronter
+from face import facefrontal, warp_mapping, get_landmark, LandmarkIndex as LI, fronter, LandmarkFetcher, get_projM, resize
 from mouth import sharpen
 import numpy as np
 
@@ -124,7 +124,7 @@ def warpback(face, tarfr, tarldmk, indices, projM, transM, scaleM, tmpshape, ksi
 
     # seperate upper face from the environment
     envfr, ufacefr = tmpfr & (~env_mask[:, :, np.newaxis]), tmpfr & env_mask[:, :, np.newaxis]
-    
+
     # blend lower and upper face
     inp_mask = cv2.dilate(env_mask, np.ones((ksize, ksize), dtype=np.uint8)) - env_mask
     ufacefr = cv2.inpaint(ufacefr, inp_mask, 10, cv2.INPAINT_TELEA)
@@ -138,10 +138,18 @@ def warpback(face, tarfr, tarldmk, indices, projM, transM, scaleM, tmpshape, ksi
     finalfr = (facefr & env_mask[:, :, np.newaxis]) + (envfr & (~env_mask[:, :, np.newaxis]))  
     return finalfr
 
-def syn_frame(tarfr, syntxtr, sq, spadw):
+def syn_frame(tarfr, syntxtr, LF1, LF2, sq, spadw):
     # frontalize the target frame
-    ftl_face, det, ldmk, projM, transM, scaleM, tmpshape = facefrontal(tarfr, detail=True)
-    ftl_det, ftl_p2d = get_landmark(ftl_face, idx=LandmarkIndex.FULL, norm=False)
+    det, p2d = LF1.get_landmark(tarfr, LI.FULL, False)
+    ftl_face, projM, transM, scaleM, tmpshape = facefrontal(tarfr, det, p2d, detail=True)
+    ftl_det, ftl_p2d = LF2.get_landmark(ftl_face, idx=LI.FULL, norm=False)
+
+    ###################### FTL_P3D <-> RSZ_P2D ###########################
+    # _, rs_p2d, transM, scaleM, tmpshape = resize(tarfr, det, p2d)
+    # ftl_p2di = ftl_p2d.astype(np.int)
+    # ftl_p3d = fronter.refU[ftl_p2di[:, 1], ftl_p2di[:, 0], :]
+    # projM = get_projM(ftl_p3d, rs_p2d, fronter.A)
+    ############################### END ##################################
 
     # align lower-face to target frame
     # fpadw, fpadh, fdetw = ftl_det.left(), ftl_det.top(), ftl_det.width()
@@ -156,17 +164,19 @@ def syn_frame(tarfr, syntxtr, sq, spadw):
     indices = getindices(ftl_face, sq, fpadw, fpadh, fdetw, fWH, ftl_p2d)
     
     # warp the synthesized face to the original pose and blending
-    return warpback(syn_face, tarfr, ldmk, indices, projM, transM, scaleM, tmpshape)
+    return warpback(syn_face, tarfr, p2d, indices, projM, transM, scaleM, tmpshape)
    
 def test1():
     import time
-    syntxtr = cv2.imread('../tmp/0750s.png')
-    tarfr = cv2.imread('../tmp/0750t.png')
-    sq = Square(0.3, 0.7, 0.5, 1.1)
+    LF1 = LandmarkFetcher()
+    LF2 = LandmarkFetcher()
+    syntxtr = cv2.imread('../tmp/warp_back/0750s.png')
+    tarfr = cv2.imread('../tmp/warp_back/0750t.png')
+    sq = Square(0.25, 0.75, 0.5, 1.1)
     start = time.time()
-    outpfr = syn_frame(tarfr, syntxtr, sq, 100)
+    outpfr = syn_frame(tarfr, syntxtr, LF1, LF2, sq, 100)
     print('duration: %.2f' % (time.time()-start))
-    cv2.imwrite('../tmp/0750o_50.png', outpfr)
+    cv2.imwrite('../tmp/warp_back/0750o_new.png', outpfr)
 
 if __name__ == '__main__':
     test1()

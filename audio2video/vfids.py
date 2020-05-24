@@ -200,7 +200,7 @@ def video_process(start_batch=0, end_batch=301, links=None, cnts=None, nthreads=
         thread.join()
     print('All done')
 
-def reduce_dim():
+def reduce_dim(dim=20):
     feature_list = []
     dstdir = '%s/fids' % raw_dir
     subdirs = os.listdir(dstdir)
@@ -216,7 +216,7 @@ def reduce_dim():
     features = np.vstack(feature_list)
 
     eigvector, eigvalue = PCA(features)
-    A = eigvector[:,:20]        # A.shape = (40, 20)
+    A = eigvector[:, :dim]        # A.shape = (40, 20)
     np.save('%s/PCA_MAT.npy' % ref_dir, A)
     print('PCA_MAT saved')
 

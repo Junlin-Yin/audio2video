@@ -1,8 +1,8 @@
 import audio2video as a2v
 from audio2video import amfcc, vfids
 from audio2video import lipnn, loadstore
-from audio2video import visual, mouth
-from audio2video import retiming
+from audio2video import retiming, mouth
+from audio2video import visual
 
 raw_dir = a2v.raw_dir
 inp_dir = a2v.inp_dir
@@ -16,10 +16,10 @@ def step0_dataset():
     vfids.video_process(nthreads=10)
     vfids.reduce_dim()
 
-def step1_lipsyn(pass_id, train, predict, inp_id, outp_norm=False, preprocess=False,
+def step1_lipsyn(pass_id, train, predict, inp_id=None, outp_norm=False, preprocess=False,
                  vr=0.2, step_delay=20, dim_hidden=60, nlayers=1, keep_prob=0.8,
                  seq_len=100, batch_size=100, nepochs=300, grad_clip=10,
-                 lr=1e-3, dr=0.99, b_savef=50, e_savef=5, argspath=None, showGraph=False):
+                 lr=1e-3, dr=0.99, b_savef=50, e_savef=5, argspath=None, showGraph=True):
     # important parameters
     args = {}
     args['vr']         = vr             # validation set ratio
@@ -42,17 +42,17 @@ def step1_lipsyn(pass_id, train, predict, inp_id, outp_norm=False, preprocess=Fa
     args['preprocess'] = preprocess
     args['outp_norm']  = outp_norm
 
-    apath   = '%s/mfcc/a%s.npy' % (inp_dir, inp_id)                 # audio mfcc
-    mpath   = '%s/mp3/a%s.mp3'  % (inp_dir, inp_id)                 # music mp3
-    opath   = '%s/ldmk/%s/a%s.npy' % (inp_dir, pass_id, inp_id)     # output npy data
-    tmppath = '%s/visual/%s/a%s.avi' % (inp_dir, pass_id, inp_id)   # temporary visualized mp4
-    vpath   = '%s/visual/%s/a%s.mp4' % (inp_dir, pass_id, inp_id)   # final visualization
-
     a2v_cvter = lipnn.Audio2Video(args=args)
     if train:
         a2v_cvter.train()
         loadstore.plot_loss(args['pass_id'])
     if predict:
+        apath   = '%s/mfcc/a%s.npy' % (inp_dir, inp_id)                 # audio mfcc
+        mpath   = '%s/mp3/a%s.mp3'  % (inp_dir, inp_id)                 # music mp3
+        opath   = '%s/ldmk/%s/a%s.npy' % (inp_dir, pass_id, inp_id)     # output npy data
+        tmppath = '%s/visual/%s/a%s.avi' % (inp_dir, pass_id, inp_id)   # temporary visualized mp4
+        vpath   = '%s/visual/%s/a%s.mp4' % (inp_dir, pass_id, inp_id)   # final visualization
+        
         ldmks = a2v_cvter.test(apath=apath, opath=opath)
         visual.visual_lipsyn(ldmks, mpath, vpath, tmppath)
         print('Lip fids are synthesized at path: %s' % vpath) 
@@ -92,24 +92,14 @@ def step4_composite(inp_id, tar_id, sq, padw=100, retiming=True, debug=False):
     visual.visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath, debug)
     print('Final video synthesized at path %s' % vpath)
 
-def clean_tmp(pass_id, inp_id, tar_id):
-    import os, glob
-    f1 = glob.glob('%s/visual/%s/*.avi' % (inp_dir, pass_id))
-    f2 = glob.glob('%s/a%st%s/*.avi' % (outp_dir, inp_id, tar_id))
-    for f in (f1 + f2):
-        if os.path.exists(f):
-            os.remove(os.path.abspath(f))
-            print('Remove: %s' % os.path.abspath(f))
-    print('Done')
-
 if __name__ == '__main__':
     pass_id = "std_u"
     inp_id  = "015"
     tar_id  = "187"
     sq = a2v.Square(0.25, 0.75, 0.5, 1.1)
-    # step0_dataset()
-    # step1_lipsyn(pass_id=pass_id, train=False, predict=True, inp_id=inp_id, outp_norm=False)
-    # step2_lfacesyn(pass_id, inp_id, tar_id, sq)
-    # step3_retiming(inp_id, tar_id)
+    step0_dataset()
+    step1_lipsyn(pass_id=pass_id, train=True, predict=True, inp_id=inp_id)
+    step2_lfacesyn(pass_id, inp_id, tar_id, sq)
+    step3_retiming(inp_id, tar_id)
     step4_composite(inp_id, tar_id, sq)
-    # clean_tmp(pass_id, inp_id, tar_id)
+    print('Done.')
