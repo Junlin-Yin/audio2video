@@ -85,6 +85,7 @@ class PointState:
 class LandmarkFetcher:
     def __init__(self, detector=None, predictor=None):
         self.prevGray = None
+        self.prevVelocity = None
         self.trackPoints = None
         self.detector = detector_default if detector is None else detector
         self.detector_alt = dlib.get_frontal_face_detector()
@@ -92,6 +93,7 @@ class LandmarkFetcher:
     
     def clear(self):
         self.prevGray = None
+        self.prevVelocity = None
         self.trackPoints = None
 
     def get_landmark(self, currFrame, idx, norm, mean=None, minWH=150, debug=False):
@@ -129,12 +131,14 @@ class LandmarkFetcher:
             for i in range(landmarks.shape[0]):
                 self.trackPoints[i].update(landmarks[i])
         new_landmarks = np.array([ps.m_point for ps in self.trackPoints])
-        velocities = np.array([ps.m_velocity for ps in self.trackPoints])
-        alphas = 1 / 3**velocities[:, np.newaxis]
-        alphas[alphas>0.7] == 1
+        v = np.array([ps.m_velocity for ps in self.trackPoints])
+        a = np.abs(v - self.prevVelocity) if self.prevVelocity is not None else np.zeros_like(v)
+        alphas = 1 / 4**(v+a)[:, np.newaxis]
+        # alphas[alphas>0.7] == 1
         landmarks = landmarks*(1-alphas) + new_landmarks*alphas
-        self.prevGray = self.currGray
 
+        self.prevGray = self.currGray
+        self.prevVelocity = v
         # normalization
         if norm:
             origin = np.array([det.left(), det.top()])
@@ -393,5 +397,10 @@ def warp_mapping(indices, pixels, tmpfr, tmpldmk, projM, transM, ksize1=10, ksiz
     return warp_mask, face_mask, region, opt2d, pixels
 
 if __name__ == "__main__":
-    pass
-    # test_cvdet('6cKIPvfvxKo', 3842, 2)
+    img = cv2.imread('../tmp/warp_back/0750t.png')
+    det, p2d = get_landmark(img, LandmarkIndex.FULL, False)
+    img = facefrontal(img, det, p2d, detail=False)
+    det, p2d = get_landmark(img, LandmarkIndex.LIP, False)
+    # for pt in p2d:
+    #     cv2.circle(img, tuple(pt), 2, (0, 0, 255), thickness=-1, lineType=2)
+    cv2.imwrite('../tmp/warp_back/0750t_ftl.png', img)

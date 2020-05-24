@@ -124,7 +124,7 @@ def warpback(face, tarfr, tarldmk, indices, projM, transM, scaleM, tmpshape, ksi
 
     # seperate upper face from the environment
     envfr, ufacefr = tmpfr & (~env_mask[:, :, np.newaxis]), tmpfr & env_mask[:, :, np.newaxis]
-    
+
     # blend lower and upper face
     inp_mask = cv2.dilate(env_mask, np.ones((ksize, ksize), dtype=np.uint8)) - env_mask
     ufacefr = cv2.inpaint(ufacefr, inp_mask, 10, cv2.INPAINT_TELEA)
@@ -168,13 +168,15 @@ def syn_frame(tarfr, syntxtr, LF1, LF2, sq, spadw):
    
 def test1():
     import time
-    syntxtr = cv2.imread('../tmp/0750s.png')
-    tarfr = cv2.imread('../tmp/0750t.png')
-    sq = Square(0.3, 0.7, 0.5, 1.1)
+    LF1 = LandmarkFetcher()
+    LF2 = LandmarkFetcher()
+    syntxtr = cv2.imread('../tmp/warp_back/0750s.png')
+    tarfr = cv2.imread('../tmp/warp_back/0750t.png')
+    sq = Square(0.25, 0.75, 0.5, 1.1)
     start = time.time()
-    outpfr = syn_frame(tarfr, syntxtr, sq, 100)
+    outpfr = syn_frame(tarfr, syntxtr, LF1, LF2, sq, 100)
     print('duration: %.2f' % (time.time()-start))
-    cv2.imwrite('../tmp/0750o_50.png', outpfr)
+    cv2.imwrite('../tmp/warp_back/0750o_new.png', outpfr)
 
 if __name__ == '__main__':
     test1()

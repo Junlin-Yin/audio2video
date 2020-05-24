@@ -134,4 +134,16 @@ def clip_target(tar_id, ti, tf):
     print('Done')
     
 if __name__ == '__main__':
-    pass
+    from audio2video.__init__ import tar_dir
+    import cv2, os, numpy as np
+    cap = cv2.VideoCapture('C:/Users/xinzhu/Desktop/composite/a015t187_v2.mp4')
+    nfr = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))-10
+    for i in range(nfr):
+        frame1 = cv2.imread('../tmp/compare/gnd/%04d.png'%(i+1))
+        frame2 = cv2.imread('../tmp/compare/gen/%04d.png'%(i+11))
+        frame = np.concatenate([frame1, frame2], axis=0)
+        cv2.imwrite('../tmp/compare/gnd-gen/%04d.png'%(i+1), frame)
+        if (i+1) % 50 == 0 or i+1 == nfr:
+            print('%04d/%04d' % (i+1, nfr))
+    print('Done')
+

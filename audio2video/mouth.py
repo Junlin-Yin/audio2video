@@ -78,7 +78,7 @@ def optimize_sigma(L2, n, alpha):
         i += 1
         
         sigma = (left + right) / 2
-        weights = np.exp(-L2 / (2 * sigma**2))
+        weights = np.exp(-L2**2 / (2 * sigma**2))
         indices = np.argsort(weights)[::-1] # large -> small
         weights = weights[indices]
         ratio = np.sum(weights[:n]) / np.sum(weights)
@@ -171,7 +171,7 @@ if __name__ == '__main__':
     from __init__ import Square
     ipath = '../input/ldmk/std_u/a015.npy'
     tprocpath = '../target/preproc/t187.npz'
-    sq = Square(0.3, 0.7, 0.5, 1.1)
+    sq = Square(0.25, 0.75, 0.5, 1.1)
     rsize, padw = 300, 100
     # load target data and clip them
     tgtdata = np.load(tprocpath)
@@ -181,11 +181,16 @@ if __name__ == '__main__':
     # load input data and proxy data
     inpdata = np.load(ipath)
     nfr = inpdata.shape[0]
-    pxyF, pxyS = process_proxy(rsize)
+    pxyF, pxyS = process_proxy('t187', rsize)
+    cv2.imwrite('../tmp/upperpxy.png', (pxyF['upper']*255).astype(np.uint8))
+    cv2.imwrite('../tmp/lowerpxy.png', (pxyF['lower']*255).astype(np.uint8))
     
     # create every frame and form a mp4
-    inpS = inpdata[750]
+    fid = 750
+    inpS = inpdata[fid]
     tmpI, tmpS = weighted_median(inpS, tgtS, tgtI)
+    cv2.imwrite('../tmp/median_%04d.png' % fid, tmpI)
     tmpI2 = process_teeth(tmpI, tmpS, pxyF, pxyS, rsize, padw, boundary)
+    cv2.imwrite('../tmp/teeth_%04d.png' % fid, tmpI2)
     outpI = sharpen(tmpI2)
-    cv2.imwrite('../tmp/0750_2.png', outpI)
+    cv2.imwrite('../tmp/sharp_%04d.png' % fid, outpI)
