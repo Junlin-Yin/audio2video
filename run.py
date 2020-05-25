@@ -97,8 +97,8 @@ if __name__ == '__main__':
     inp_id  = "015"
     tar_id  = "187"
     sq = a2v.Square(0.25, 0.75, 0.5, 1.1)
-    step0_dataset()
-    step1_lipsyn(pass_id=pass_id, train=True, predict=True, inp_id=inp_id)
+    # step0_dataset()
+    # step1_lipsyn(pass_id=pass_id, train=True, predict=True, inp_id=inp_id)
     step2_lfacesyn(pass_id, inp_id, tar_id, sq)
     step3_retiming(inp_id, tar_id)
     step4_composite(inp_id, tar_id, sq)
