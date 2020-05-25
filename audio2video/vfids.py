@@ -12,7 +12,7 @@ subdirs = os.listdir(dstdir)
 subdirs = [x[:-4] for x in subdirs]
 unqeles, unqinds, inverids, unqcnts = np.unique(subdirs, return_index=True, return_inverse=True, return_counts=True)
 
-with open(os.path.join(ref_dir, 'links.txt')) as linkf:
+with open(os.path.join(raw_dir, 'links.txt')) as linkf:
     files = linkf.readlines()
     files = [x[32:43] for x in files]
 

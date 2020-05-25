@@ -73,8 +73,8 @@ def step2_lfacesyn(pass_id, inp_id, tar_id, sq, rsize=300, padw=100, preproc=Fal
 def step3_retiming(inp_id, tar_id):
     mpath   = '%s/mp3/a%s.mp3' % (inp_dir, inp_id)
     tpath   = '%s/mp4/t%s.mp4' % (tar_dir, tar_id)
-    orpath  = '%s/a%st%s/tgtor.mp4' % (outp_dir, inp_id, tar_id)
-    rtpath  = '%s/a%st%s/tgtrt.mp4' % (outp_dir, inp_id, tar_id)
+    orpath  = '%s/a%st%s/tgt_original.mp4' % (outp_dir, inp_id, tar_id)
+    rtpath  = '%s/a%st%s/tgt_retiming.mp4' % (outp_dir, inp_id, tar_id)
     opath   = '%s/a%st%s/retiming.npy' % (outp_dir, inp_id, tar_id)
     
     L = retiming.timing_opt(mpath, tpath, opath)
@@ -85,9 +85,9 @@ def step3_retiming(inp_id, tar_id):
 def step4_composite(inp_id, tar_id, sq, padw=100, retiming=True, debug=False):
     ipath       = '%s/a%st%s/lface.npy' % (outp_dir, inp_id, tar_id)
     mpath       = '%s/mp3/a%s.mp3' % (inp_dir, inp_id)
-    tpath       = '%s/a%st%s/tgt%s.mp4' % (outp_dir, inp_id, tar_id, 'rt' if retiming else 'or')
-    tmppath     = '%s/a%st%s/final.avi' % (outp_dir, inp_id, tar_id)
-    vpath       = '%s/a%st%s/final.mp4' % (outp_dir, inp_id, tar_id)
+    tpath       = '%s/a%st%s/tgt_%s.mp4' % (outp_dir, inp_id, tar_id, 'retiming' if retiming else 'original')
+    tmppath     = '%s/a%st%s/a%st%s_%s.avi' % (outp_dir, inp_id, tar_id, inp_id, tar_id, 'retiming' if retiming else 'original')
+    vpath       = '%s/a%st%s/a%st%s_%s.mp4' % (outp_dir, inp_id, tar_id, inp_id, tar_id, 'retiming' if retiming else 'original')
         
     visual.visual_composite(sq, padw, mpath, ipath, tpath, vpath, tmppath, debug)
     print('Final video synthesized at path %s' % vpath)
@@ -97,8 +97,8 @@ if __name__ == '__main__':
     inp_id  = "015"
     tar_id  = "187"
     sq = a2v.Square(0.25, 0.75, 0.5, 1.1)
-    # step0_dataset()
-    # step1_lipsyn(pass_id=pass_id, train=True, predict=True, inp_id=inp_id)
+    step0_dataset()
+    step1_lipsyn(pass_id=pass_id, train=True, predict=True, inp_id=inp_id)
     step2_lfacesyn(pass_id, inp_id, tar_id, sq)
     step3_retiming(inp_id, tar_id)
     step4_composite(inp_id, tar_id, sq)

@@ -1,12 +1,9 @@
-# audio2video-v1
-My Undergraduate Graduation Project, the whole pipeline included, version 1 
+# audio2video
+My Undergraduate Graduation Project, the whole pipeline included. 
 
 Given an input audio *A* and a speaker's target video *V*, this project generates an output video where speaker in *V* is saying contents in *A*.
 
 This project is BASICALLY re-implemented from the paper ["Synthesizing Obama: Learning Lip Sync from Audio"](http://grail.cs.washington.edu/projects/AudioToObama/) by [Supasorn Suwajanakorn](https://homes.cs.washington.edu/~supasorn/) et al. They published the LSTM part of codes but the whole pipeline cannot be found.
-
-Here are some frames in my demo output video.
-![avatar](misc/demo-frames.png)
 
 ## Architecture & Pipeline
 ![avatar](misc/architecture.png)
@@ -18,9 +15,9 @@ Here are some frames in my demo output video.
 6. For each pair of matched mouth & teeth texture and target frame, transfer and Laplacian pyramid blend synthesized texture onto the target frame to form a final frame. Combine final frame sequence and input audio to get the final speaker's video.
 
 ## Dataset
-In this project, I use US former president Obama's weekly address as the audio and video dataset. Raw data and preprocessed data can be found in raw/*.
+In this project, I use US former president Obama's weekly address as the audio and video dataset. Raw data links and preprocessed data can be found in ```raw/*```.
 
-I use preprocessed audio and video data mentioned above to train the delayed LSTM. For demonstration, I choose audio from this speech: ["Improving Economic Security by Strengthening and Modernizing the Unemployment Insurance System"](https://www.youtube.com/watch?v=6jlaKyvf8WA) as input (saved at input/mp3/a015.mp3) and video from this speech: ["Congress Must Move Forward, Not Back On Wall Street Reform"](https://www.youtube.com/watch?v=6qylcsQjLTA) (saved at target/mp4/t187.mp4) as target, to generate the final output video (saved at output/a015t187/final.mp4). Of course you can try other data as inputs and targets, even resources other than Obama's weekly address.
+I use preprocessed audio and video data mentioned above to train the delayed LSTM. For demonstration, I choose audio from this speech: ["Improving Economic Security by Strengthening and Modernizing the Unemployment Insurance System"](https://www.youtube.com/watch?v=6jlaKyvf8WA) as input (saved at ```input/mp3/a015.mp3```) and video from this speech: ["Congress Must Move Forward, Not Back On Wall Street Reform"](https://www.youtube.com/watch?v=6qylcsQjLTA) (saved at ```target/mp4/t187.mp4```) as target, to generate the final output video (saved at ```output/a015t187/final_*.mp4```). Of course you can try other data as inputs and targets, even resources other than Obama's weekly address.
 
 ## Directory
 ```
@@ -42,3 +39,9 @@ I use preprocessed audio and video data mentioned above to train the delayed LST
 - log/              set for tensorboard
 - output/           temporary and final outputs
 ```
+
+## Result Conclusion
+Here are some frames in my demo output video.
+![avatar](misc/demo-frames.png)
+
+The experimental results show that the LSTM network with delay can well learn how to map audio features to sparse mouth shapes. Moreover, the final output video basically achieves the synchronicity of mouth shape and speech audio, the clarity and verisimilitude of texture, and the coordination of head movement and voice, yet the temporal smoothness needs improving.
