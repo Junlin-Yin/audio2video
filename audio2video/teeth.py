@@ -7,7 +7,7 @@ import numpy as np
 from face import get_landmark, LandmarkIndex
 from __init__ import tar_dir
 
-def process_proxy(tar_id, rsize, ksize=15, sigma=1e2, k=1, line=369):
+def process_proxy(tar_id, rsize, line, ksize=15, sigma=1e2, k=1):
     # process teeth proxies to get their landmarks and high-pass filters
     F, S = {}, {}
     for mode in ('upper', 'lower'):
@@ -16,8 +16,8 @@ def process_proxy(tar_id, rsize, ksize=15, sigma=1e2, k=1, line=369):
         det, ldmk = get_landmark(img, LandmarkIndex.LIP, norm=True)
 
         # resize texture
-        if mode == 'upper': img[line:] = (0, 0, 0)
-        else: img[:line] = (0, 0, 0)
+        if mode == 'upper': img[line[mode]:] = (0, 0, 0)
+        else: img[:line[mode]] = (0, 0, 0)
         txtr = img[det.top():det.top()+det.height(), det.left():det.left()+det.width()]
         txtr = cv2.resize(txtr, (rsize, rsize))
         

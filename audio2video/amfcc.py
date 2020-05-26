@@ -253,5 +253,12 @@ def audio_process(base_dirs):
             numpy.save('%s/%s.npy' % (audiodir, mp3file[:-4]), audio)
             print(mp3file, 'done')
 
+def single_audio_process(mpath, apath):
+    sr=16000
+    mfccGen = MFCC(nfilt=40, ncep=13, samprate=sr, frate=100, wlen=0.025)
+    y, sr = librosa.load(mpath, sr=sr)
+    audio = mfccGen.sig2s2mfc_energy(y)
+    numpy.save(apath, audio)
+
 if __name__ == '__main__':
     print('Hello, World')

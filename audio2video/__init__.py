@@ -1,5 +1,8 @@
-import os
+import os, sys
 import cv2, dlib
+
+package_path = os.path.abspath(os.path.dirname(__file__))
+sys.path.append(package_path)
 
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 inp_dir  = '../input'
